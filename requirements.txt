@@ -1,0 +1,20 @@
+# Core dependencies for CoastSat shoreline analysis
+numpy>=1.20.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+scipy>=1.7.0
+scikit-image>=0.18.0
+geopandas>=0.10.0
+rasterio>=1.2.0
+shapely>=1.8.0
+folium>=0.12.0
+jupyter>=1.0.0
+
+# Satellite imagery processing
+earthengine-api>=0.1.0
+geemap>=0.11.0
+
+# Optional: for advanced analysis
+statsmodels>=0.12.0
+plotly>=5.0.0
