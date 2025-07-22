@@ -7,8 +7,8 @@
             "creator": {
                 "@id": "#creator"
             },
-            "datePublished": "2025-07-22T02:17:25+00:00",
-            "description": "This crate contains the interface.crate and a Stencila DNF document for generating micropublications.",
+            "datePublished": "2025-07-22T02:21:08+00:00",
+            "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
             "hasPart": [
                 {
                     "@id": "shoreline_publication.smd"
@@ -23,7 +23,7 @@
             "mainEntity": {
                 "@id": "#research-article"
             },
-            "name": "Micropublication Crate"
+            "name": "Publication Crate"
         },
         {
             "@id": "ro-crate-metadata.json",
@@ -148,9 +148,9 @@
                 "File",
                 "SoftwareSourceCode"
             ],
-            "description": "Python logic for generating micropublications from the DNF document.",
+            "description": "Python logic for generating publications from the DNF document.",
             "encodingFormat": "text/x-python",
-            "name": "Micropublication Logic",
+            "name": "Publication Logic",
             "sha256": "876a5a171e42f21deaf2ee28ff2bc942d05bd59b85f9902024815fe2bd612627"
         }
     ]
