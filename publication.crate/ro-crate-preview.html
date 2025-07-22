@@ -14,7 +14,7 @@
       "creator": {
         "@id": "#creator"
       },
-      "datePublished": "2025-07-22T02:21:08+00:00",
+      "datePublished": "2025-07-22T03:43:12+00:00",
       "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
       "hasPart": [
         {
@@ -50,6 +50,18 @@
       }
     },
     {
+      "@id": "#creator",
+      "@type": "Person",
+      "name": "Unknown Author",
+      "@reverse": {
+        "creator": [
+          {
+            "@id": "./"
+          }
+        ]
+      }
+    },
+    {
       "@id": "shoreline_publication.smd",
       "@type": [
         "File",
@@ -72,63 +84,6 @@
         "isBasedOn": [
           {
             "@id": "#dnf-evaluated-document"
-          }
-        ]
-      }
-    },
-    {
-      "@id": "interface.crate/",
-      "@type": [
-        "RO-Crate",
-        "Dataset"
-      ],
-      "description": "Nested interface.crate containing Experiment Infrastructure execution data.",
-      "license": "https://creativecommons.org/licenses/by/4.0/",
-      "name": "Interface Crate",
-      "@reverse": {
-        "hasPart": [
-          {
-            "@id": "./"
-          }
-        ],
-        "isBasedOn": [
-          {
-            "@id": "#dnf-evaluated-document"
-          }
-        ]
-      }
-    },
-    {
-      "@id": "publication_logic.py",
-      "@type": [
-        "File",
-        "SoftwareSourceCode"
-      ],
-      "description": "Python logic for generating publications from the DNF document.",
-      "encodingFormat": "text/x-python",
-      "name": "Publication Logic",
-      "sha256": "876a5a171e42f21deaf2ee28ff2bc942d05bd59b85f9902024815fe2bd612627",
-      "@reverse": {
-        "hasPart": [
-          {
-            "@id": "./"
-          }
-        ],
-        "wasGeneratedBy": [
-          {
-            "@id": "#research-article"
-          }
-        ]
-      }
-    },
-    {
-      "@id": "#creator",
-      "@type": "Person",
-      "name": "Unknown Author",
-      "@reverse": {
-        "creator": [
-          {
-            "@id": "./"
           }
         ]
       }
@@ -175,6 +130,28 @@
         "isBasedOn": [
           {
             "@id": "#stencila"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "interface.crate/",
+      "@type": [
+        "RO-Crate",
+        "Dataset"
+      ],
+      "description": "Nested interface.crate containing Experiment Infrastructure execution data.",
+      "license": "https://creativecommons.org/licenses/by/4.0/",
+      "name": "Interface Crate",
+      "@reverse": {
+        "hasPart": [
+          {
+            "@id": "./"
+          }
+        ],
+        "isBasedOn": [
+          {
+            "@id": "#dnf-evaluated-document"
           }
         ]
       }
@@ -242,7 +219,6 @@
         }
       ],
       "name": "LivePublication: A Dynamic and Reproducible Research Article",
-      "url": "https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_14-21-09",
       "wasGeneratedBy": [
         {
           "@id": "#dnf-presentation-environment"
@@ -255,6 +231,29 @@
         "mainEntity": [
           {
             "@id": "./"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "publication_logic.py",
+      "@type": [
+        "File",
+        "SoftwareSourceCode"
+      ],
+      "description": "Python logic for generating publications from the DNF document.",
+      "encodingFormat": "text/x-python",
+      "name": "Publication Logic",
+      "sha256": "e0209cb5c0ebfa640bcd88a0cf8cd004ec5ed4fc2572a8a847f8b0d64a6148ef",
+      "@reverse": {
+        "hasPart": [
+          {
+            "@id": "./"
+          }
+        ],
+        "wasGeneratedBy": [
+          {
+            "@id": "#research-article"
           }
         ]
       }
@@ -331,7 +330,7 @@ table.table {
             <td style='text-align:left'><span>This crate contains the interface.crate and a Stencila DNF document for generating publications.</span></td>
             </tr><tr>
             <th style="text-align:left;" class="prop">datePublished<span>&nbsp;</span><a href="http://schema.org/datePublished">[?]</a></th>
-            <td style='text-align:left'><span>2025-07-22T02:21:08+00:00</span></td>
+            <td style='text-align:left'><span>2025-07-22T03:43:12+00:00</span></td>
             </tr><tr>
             <th style="text-align:left;" class="prop">creator<span>&nbsp;</span><a href="http://schema.org/creator">[?]</a></th>
             <td style='text-align:left'><a href="#%23creator">Unknown Author</a></td>
@@ -501,7 +500,7 @@ table.table {
             <td style='text-align:left'><span>text/x-python</span></td>
             </tr><tr>
             <th style="text-align:left;" class="prop">sha256</th>
-            <td style='text-align:left'><span>876a5a171e42f21deaf2ee28ff2bc942d05bd59b85f9902024815fe2bd612627</span></td>
+            <td style='text-align:left'><span>e0209cb5c0ebfa640bcd88a0cf8cd004ec5ed4fc2572a8a847f8b0d64a6148ef</span></td>
             </tr><tr><th colspan="2" style="text-align:center">Items that reference this one</th><tr><tr>
             <th style="text-align:left;" class="prop">hasPart<span>&nbsp;</span><a href="http://schema.org/hasPart">[?]</a></th>
             <td style='text-align:left'><a href="#./">Publication Crate</a></td>
@@ -542,9 +541,6 @@ table.table {
                         
                         <li><a href="#%23dnf-presentation-environment">DNF Presentation Environment</a></li>
                         </ul></td>
-            </tr><tr>
-            <th style="text-align:left;" class="prop">url<span>&nbsp;</span><a href="http://schema.org/url">[?]</a></th>
-            <td style='text-align:left'><a href="https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_14-21-09">https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_14-21-09</a></td>
             </tr><tr>
             <th style="text-align:left;" class="prop">wasGeneratedBy</th>
             <td style='text-align:left'><ul>
