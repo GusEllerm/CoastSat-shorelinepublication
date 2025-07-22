@@ -121,7 +121,7 @@ def add_dnf_deps(crate):
 
     headers = {
         "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "CoastSat-micropublication"
+        "User-Agent": "CoastSat-ShorelinePublication"
     }
     if token:
         headers["Authorization"] = f"token {token}"
@@ -159,7 +159,7 @@ def add_dnf_deps(crate):
 
     return nested
 
-def add_micropublication_logic(crate):
+def add_publication_logic(crate):
     # Copy the publication logic to current working directory and crate directory
     logic_source = Path(__file__).parent / "publication_logic.py"
     
@@ -175,8 +175,8 @@ def add_micropublication_logic(crate):
     
     logic_file = crate.add_file("publication_logic.py", properties={
         "@type": ["File", "SoftwareSourceCode"],
-        "name": "Micropublication Logic",
-        "description": "Python logic for generating micropublications from the DNF document.",
+        "name": "Publication Logic",
+        "description": "Python logic for generating publications from the DNF document.",
         "encodingFormat": "text/x-python",
         "sha256": hashlib.sha256(open(logic_source, "rb").read()).hexdigest()
     })
@@ -184,8 +184,8 @@ def add_micropublication_logic(crate):
 
 def create_publication_crate(crate_dir="publication.crate"):
     crate = ROCrate()
-    crate.name = "Micropublication Crate"
-    crate.description = "This crate contains the interface.crate and a Stencila DNF document for generating micropublications."
+    crate.name = "Publication Crate"
+    crate.description = "This crate contains the interface.crate and a Stencila DNF document for generating publications."
     creator = crate.add(Person(crate, "#creator", {"name": "Unknown Author"}))
     crate.creator = creator
 
@@ -198,13 +198,13 @@ def create_publication_crate(crate_dir="publication.crate"):
     dnf_eval_doc = add_eval_dnf(crate)
     dnf_presentation_env = add_dnf_presentation(crate)
     research_article = add_research_article(crate)
-    micropublication_logic = add_micropublication_logic(crate)
+    publication_logic = add_publication_logic(crate)
 
     print(dnf_presentation_env)
 
     crate.mainEntity = research_article
     research_article["isBasedOn"] = [dnf_eval_doc, dnf_presentation_env]
-    research_article["wasGeneratedBy"] = [dnf_presentation_env, micropublication_logic]
+    research_article["wasGeneratedBy"] = [dnf_presentation_env, publication_logic]
 
     dnf_eval_doc["isBasedOn"] = [dnf_document, dnf_data_dependencies, dnf_engine]
     dnf_presentation_env["isBasedOn"] = [dnf_engine]

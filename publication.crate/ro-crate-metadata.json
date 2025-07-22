@@ -7,7 +7,7 @@
             "creator": {
                 "@id": "#creator"
             },
-            "datePublished": "2025-07-22T02:21:08+00:00",
+            "datePublished": "2025-07-22T03:41:48+00:00",
             "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
             "hasPart": [
                 {
@@ -151,7 +151,7 @@
             "description": "Python logic for generating publications from the DNF document.",
             "encodingFormat": "text/x-python",
             "name": "Publication Logic",
-            "sha256": "876a5a171e42f21deaf2ee28ff2bc942d05bd59b85f9902024815fe2bd612627"
+            "sha256": "e0209cb5c0ebfa640bcd88a0cf8cd004ec5ed4fc2572a8a847f8b0d64a6148ef"
         }
     ]
 }

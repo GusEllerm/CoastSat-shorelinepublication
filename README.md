@@ -42,8 +42,6 @@ python publication_crate.py
 
 ### Run Tests
 
-### Run Tests
-
 ```bash
 # Enhanced testing with auto-preview
 tests/test_publication_enhanced.sh aus0001
@@ -61,18 +59,23 @@ scripts/create_publication.sh aus0001
 
 ## 📦 Core Components
 
-### **`src/publication_logic.py`** 
+### **`src/publication_logic.py`**
+
 Main publication generation logic with dual execution modes:
+
 - **Development Mode**: Run from project root to generate publications
 - **Webservice Mode**: Run from within publication.crate for dynamic content
 
 ### **`src/crate_builder.py`**
+
 RO-Crate generation system that:
+
 - Downloads latest interface.crate from GitHub releases
-- Copies templates and logic files from `src/` 
+- Copies templates and logic files from `src/`
 - Generates complete publication.crate with metadata
 
 ### **`src/templates/shoreline_publication.smd`**
+
 Document template that authors edit to customize publications. Uses Stencila's dynamic document format with executable Python code blocks.
 
 ## 🖋️ Author Workflow
@@ -80,7 +83,7 @@ Document template that authors edit to customize publications. Uses Stencila's d
 To customize the publication template:
 
 1. **Edit the template**: Modify `src/templates/shoreline_publication.smd`
-2. **Rebuild the crate**: Run `python src/crate_builder.py` 
+2. **Rebuild the crate**: Run `python src/crate_builder.py`
 3. **Test locally**: Run `python src/publication_logic.py [site_id]`
 4. **Create release**: Run `scripts/create_publication.sh [site_id]`
 
@@ -93,10 +96,11 @@ To customize the publication template:
 import json
 with open('data.json', 'r') as f:
     data = json.load(f)
-    
+  
 site_id = data['id'] 
 print(f"Analysis for site: {site_id}")
 ```
+
 ```
 
 ## 🔧 Technical Architecture
@@ -126,6 +130,7 @@ def generate_publication(site_id, output_path):
 The publication.crate is self-contained and portable for deployment.
 
 ## 📝 Dependencies
+
 4. **Deploy**: Use generated `publication.crate/` in production
 
 ## Key Features
@@ -150,6 +155,7 @@ The `shoreline_publication.smd` template supports:
 - **Stencila Features**: Full dynamic document capabilities
 
 Example template structure:
+
 ```markdown
 ---
 title: "Shoreline Analysis for {site_id}"
@@ -165,6 +171,7 @@ site_id = data['id']
 ```
 
 Analyzing site **{site_id}**...
+
 ```
 
 ## Requirements

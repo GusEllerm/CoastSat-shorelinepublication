@@ -22,7 +22,7 @@ def prepare_temp_directory(template_path, site_id):
 
     # Determine the crate root based on where we're running from
     script_parent = Path(__file__).parent
-    if script_parent.name == "publication.crate":
+    if script_parent.name.endswith("publication.crate"):
         # Running from inside publication.crate
         crate_root = script_parent
     elif script_parent.name == "src":
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     
     # Detect if we're running from inside publication.crate or from src directory
     current_dir = Path(__file__).parent
-    if current_dir.name == "publication.crate":
+    if current_dir.name.endswith("publication.crate"):
         # Running from inside publication.crate
         crate_path = current_dir
         print(f"📁 Running from inside publication.crate: {crate_path}")
