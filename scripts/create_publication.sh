@@ -7,7 +7,7 @@ echo ""
 
 # Regenerate publication.crate
 echo "🏗️  Regenerating publication.crate..."
-python publication_crate.py
+python src/crate_builder.py
 
 # Generate HTML preview of the crate
 echo "🌐 Generating HTML preview..."
@@ -73,7 +73,7 @@ echo "📍 Release URL: $release_url"
 # Patch the crate with release URL
 echo ""
 echo "🔧 Patching publication.crate with release URL..."
-python patch_post_release.py "$release_url"
+python scripts/patch_post_release.py "$release_url"
 
 # Regenerate HTML after patching
 if command -v rochtml >/dev/null 2>&1; then

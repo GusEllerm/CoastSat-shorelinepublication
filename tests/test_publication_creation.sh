@@ -7,7 +7,7 @@ echo ""
 
 # Test 1: Regenerate publication.crate
 echo "🏗️  Test 1: Regenerating publication.crate..."
-python publication_crate.py
+python ../src/crate_builder.py
 echo "✅ publication.crate regenerated"
 
 # Test 2: Check if rochtml works
@@ -25,7 +25,7 @@ fi
 echo ""
 echo "🔧 Test 3: Testing patch functionality..."
 test_url="https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/test-$(date +%s)"
-python patch_post_release.py "$test_url"
+python ../scripts/patch_post_release.py "$test_url"
 echo "✅ Patch script works"
 
 # Test 4: Create test zip

@@ -48,9 +48,9 @@ echo ""
 echo "🏗️  Regenerating publication.crate..."
 echo "⏳ This may take a while as it downloads interface.crate..."
 
-# Run publication_crate.py with timeout to avoid hanging indefinitely
-timeout 300 python publication_crate.py || {
-    echo "❌ publication_crate.py timed out or failed"
+# Run crate_builder.py with timeout to avoid hanging indefinitely
+timeout 300 python src/crate_builder.py || {
+    echo "❌ src/crate_builder.py timed out or failed"
     echo "💡 This might be due to network issues or GitHub API limits"
     exit 1
 }
@@ -74,7 +74,7 @@ else
     exit 1
 fi
 
-if [ -f "publication.crate/shorelinepublication_logic.py" ]; then
+if [ -f "publication.crate/publication_logic.py" ]; then
     echo "✅ Logic file found in publication.crate/"
 else
     echo "❌ Logic file not found in publication.crate/"
@@ -85,7 +85,7 @@ echo ""
 echo "🚀 Running shoreline publication generation..."
 echo "Using site ID: $CUSTOM_SITE_ID"
 
-python shorelinepublication_logic.py "$CUSTOM_SITE_ID"
+python src/publication_logic.py "$CUSTOM_SITE_ID"
 
 if [ -f "shorelinepublication.html" ]; then
     echo ""

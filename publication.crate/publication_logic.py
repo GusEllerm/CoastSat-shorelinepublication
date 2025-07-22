@@ -25,8 +25,11 @@ def prepare_temp_directory(template_path, site_id):
     if script_parent.name == "publication.crate":
         # Running from inside publication.crate
         crate_root = script_parent
+    elif script_parent.name == "src":
+        # Running from src directory (new structure)
+        crate_root = script_parent.parent / "publication.crate"
     else:
-        # Running from parent directory
+        # Running from parent directory (legacy)
         crate_root = script_parent / "publication.crate"
     
     # Add top-level ro-crate-metadata.json
@@ -126,14 +129,18 @@ if __name__ == "__main__":
 
     print("🔍 Getting template path...")
     
-    # Detect if we're running from inside publication.crate or from parent directory
+    # Detect if we're running from inside publication.crate or from src directory
     current_dir = Path(__file__).parent
     if current_dir.name == "publication.crate":
         # Running from inside publication.crate
         crate_path = current_dir
         print(f"📁 Running from inside publication.crate: {crate_path}")
+    elif current_dir.name == "src":
+        # Running from src directory (new structure)
+        crate_path = current_dir.parent / "publication.crate"
+        print(f"📁 Running from src directory, using: {crate_path}")
     else:
-        # Running from parent directory
+        # Running from parent directory (legacy)
         crate_path = current_dir / "publication.crate"
         print(f"📁 Running from parent directory, using: {crate_path}")
     

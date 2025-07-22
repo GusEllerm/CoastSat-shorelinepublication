@@ -1,103 +1,131 @@
-# CoastSat Shoreline Publication
+# CoastSat Shoreline Publication System
 
-A dynamic publication system that generates interactive HTML reports from CoastSat shoreline analysis data using Stencila and RO-Crate standards.
+A dynamic publication system for CoastSat shoreline analysis data that creates interactive, reproducible research publications using RO-Crate and Stencila technologies.
 
-## Overview
-
-This repository contains a publication crate system that can generate dynamic, reproducible shoreline analysis publications for individual sites. The system uses:
-
-- **Stencila**: For dynamic document rendering with executable code blocks
-- **RO-Crate**: For metadata and data provenance 
-- **Python**: For data processing and publication logic
-- **HTML**: For final publication output
-
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 CoastSat-shorelinepublication/
-├── shoreline_publication.smd          # Main template (edit this)
-├── shorelinepublication_logic.py      # Publication generation logic
-├── publication_crate.py               # Creates publication.crate
-├── test_publication_enhanced.sh       # Full test workflow script
-├── publication.crate/                 # Generated publication crate
-│   ├── shoreline_publication.smd      # Template copy
-│   ├── shorelinepublication_logic.py  # Logic copy  
-│   ├── ro-crate-metadata.json         # RO-Crate metadata
-│   └── interface.crate/               # CoastSat workflow data
-└── data/                              # Downloaded data files
+├── src/                         # Core production code
+│   ├── publication_logic.py     # Main publication generation logic
+│   ├── crate_builder.py         # RO-Crate generation system
+│   ├── templates/               # Document templates
+│   │   └── shoreline_publication.smd
+│   └── __init__.py             # Package initialization
+│
+├── scripts/                     # Automation scripts
+│   ├── create_publication.sh    # Automated GitHub release creation
+│   ├── patch_post_release.py    # Post-release metadata patching
+│   └── README.md               # Scripts documentation
+│
+├── tests/                       # Testing infrastructure
+│   ├── test_publication_enhanced.sh  # Comprehensive testing
+│   ├── test_publication_creation.sh  # Release workflow testing
+│   └── README.md               # Testing documentation
+│
+├── docs/                        # Documentation
+├── publication.crate/           # Generated publication crate (git-ignored)
+└── CoastSat/                   # External submodule
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Generate a Publication
+### Generate a Publication
 
 ```bash
-# Basic usage - generates publication for a site
-./test_publication_enhanced.sh my_site_id
+# Using the main logic
+python src/publication_logic.py aus0001
 
-# The script will:
-# - Clean old publication.crate
-# - Regenerate fresh publication.crate 
-# - Run Stencila pipeline
-# - Open result in browser
+# Using the backward-compatible wrapper
+python publication_crate.py
 ```
 
-### 2. Edit the Template
+### Run Tests
 
-Edit `shoreline_publication.smd` in the root directory with your content:
+### Run Tests
+
+```bash
+# Enhanced testing with auto-preview
+tests/test_publication_enhanced.sh aus0001
+
+# Release workflow testing
+tests/test_publication_creation.sh
+```
+
+### Create GitHub Release
+
+```bash
+# Automated release creation
+scripts/create_publication.sh aus0001
+```
+
+## 📦 Core Components
+
+### **`src/publication_logic.py`** 
+Main publication generation logic with dual execution modes:
+- **Development Mode**: Run from project root to generate publications
+- **Webservice Mode**: Run from within publication.crate for dynamic content
+
+### **`src/crate_builder.py`**
+RO-Crate generation system that:
+- Downloads latest interface.crate from GitHub releases
+- Copies templates and logic files from `src/` 
+- Generates complete publication.crate with metadata
+
+### **`src/templates/shoreline_publication.smd`**
+Document template that authors edit to customize publications. Uses Stencila's dynamic document format with executable Python code blocks.
+
+## 🖋️ Author Workflow
+
+To customize the publication template:
+
+1. **Edit the template**: Modify `src/templates/shoreline_publication.smd`
+2. **Rebuild the crate**: Run `python src/crate_builder.py` 
+3. **Test locally**: Run `python src/publication_logic.py [site_id]`
+4. **Create release**: Run `scripts/create_publication.sh [site_id]`
+
+### Template Example
 
 ```markdown
-# My Shoreline Analysis
+# My Custom Shoreline Analysis
 
 ```python exec
 import json
-
-# Load site data
 with open('data.json', 'r') as f:
     data = json.load(f)
-
-site_id = data['id']
-print(f"Analyzing site: {site_id}")
+    
+site_id = data['id'] 
+print(f"Analysis for site: {site_id}")
+```
 ```
 
-Analysis results for site {site_id}...
-```
+## 🔧 Technical Architecture
 
-### 3. Advanced Usage
+- **Stencila 2.4.1**: Dynamic document rendering with executable Python code blocks  
+- **RO-Crate Standard**: Metadata and data provenance using ROCrate Python library
+- **Dual Execution**: Works both as development tool and webservice component
+- **GitHub Integration**: Automated release creation with embedded URLs
 
-```bash
-# Don't auto-open browser
-./test_publication_enhanced.sh my_site --no-open
-
-# Use timestamp-based ID
-./test_publication_enhanced.sh
-
-# Get help
-./test_publication_enhanced.sh --help
-```
-
-## Webservice Integration
+## 🌐 Webservice Integration  
 
 The generated `publication.crate/` can be used by webservices:
 
 ```python
-def run_stencila_pipeline(site_id, unique_id):
-    final_path = f"{TMP_DIR}/{unique_id}.html"
-    subprocess.run([
+# Webservice usage example
+def generate_publication(site_id, output_path):
+    result = subprocess.run([
         "python",
-        os.path.join(PUBLICATION_CRATE, "shorelinepublication_logic.py"),
+        os.path.join("publication.crate", "publication_logic.py"), 
         site_id,
-        "--output",
-        final_path
+        "--output", 
+        output_path
     ], check=True)
-    return f"{unique_id}.html"
+    return output_path
 ```
 
-## Development Workflow
+The publication.crate is self-contained and portable for deployment.
 
-1. **Edit Template**: Modify `shoreline_publication.smd` 
-2. **Test Changes**: Run `./test_publication_enhanced.sh test_site`
-3. **View Results**: HTML opens automatically in browser
+## 📝 Dependencies
 4. **Deploy**: Use generated `publication.crate/` in production
 
 ## Key Features
