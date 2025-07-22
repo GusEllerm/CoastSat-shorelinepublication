@@ -85,8 +85,8 @@ def add_dnf_engine_spec(crate):
     return stencila_spec
 
 def add_dnf_doc(crate):
-    sha256_hash = hashlib.sha256(open("micropublication.smd", "rb").read()).hexdigest() if os.path.exists("micropublication.smd") else ""
-    dnf_file = crate.add_file("micropublication.smd", properties={
+    sha256_hash = hashlib.sha256(open("shoreline_publication.smd", "rb").read()).hexdigest() if os.path.exists("shoreline_publication.smd") else ""
+    dnf_file = crate.add_file("shoreline_publication.smd", properties={
         "@type": ["File", "SoftwareSourceCode", "SoftwareApplication"],
         "name": "DNF Document File",
         "description": "The unresolved dynamic narrative document serving as input to the DNF Engine.",
@@ -146,12 +146,12 @@ def add_dnf_deps(crate):
     return nested
 
 def add_micropublication_logic(crate):
-    logic_file = crate.add_file("micropublication_logic.py", properties={
+    logic_file = crate.add_file("shorelinepublication_logic.py", properties={
         "@type": ["File", "SoftwareSourceCode"],
         "name": "Micropublication Logic",
         "description": "Python logic for generating micropublications from the DNF document.",
         "encodingFormat": "text/x-python",
-        "sha256": hashlib.sha256(open("micropublication_logic.py", "rb").read()).hexdigest()
+        "sha256": hashlib.sha256(open("shorelinepublication_logic.py", "rb").read()).hexdigest()
     })
     return logic_file
 

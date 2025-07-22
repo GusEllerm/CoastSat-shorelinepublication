@@ -50,18 +50,6 @@
       }
     },
     {
-      "@id": "#creator",
-      "@type": "Person",
-      "name": "Unknown Author",
-      "@reverse": {
-        "creator": [
-          {
-            "@id": "./"
-          }
-        ]
-      }
-    },
-    {
       "@id": "shoreline_publication.smd",
       "@type": [
         "File",
@@ -84,6 +72,63 @@
         "isBasedOn": [
           {
             "@id": "#dnf-evaluated-document"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "interface.crate/",
+      "@type": [
+        "RO-Crate",
+        "Dataset"
+      ],
+      "description": "Nested interface.crate containing Experiment Infrastructure execution data.",
+      "license": "https://creativecommons.org/licenses/by/4.0/",
+      "name": "Interface Crate",
+      "@reverse": {
+        "hasPart": [
+          {
+            "@id": "./"
+          }
+        ],
+        "isBasedOn": [
+          {
+            "@id": "#dnf-evaluated-document"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "shorelinepublication_logic.py",
+      "@type": [
+        "File",
+        "SoftwareSourceCode"
+      ],
+      "description": "Python logic for generating micropublications from the DNF document.",
+      "encodingFormat": "text/x-python",
+      "name": "Micropublication Logic",
+      "sha256": "5852afbc8f089c5c764fcacc353062e34c2d6572d1f9acacdfc2026a669a1bee",
+      "@reverse": {
+        "hasPart": [
+          {
+            "@id": "./"
+          }
+        ],
+        "wasGeneratedBy": [
+          {
+            "@id": "#research-article"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "#creator",
+      "@type": "Person",
+      "name": "Unknown Author",
+      "@reverse": {
+        "creator": [
+          {
+            "@id": "./"
           }
         ]
       }
@@ -130,28 +175,6 @@
         "isBasedOn": [
           {
             "@id": "#stencila"
-          }
-        ]
-      }
-    },
-    {
-      "@id": "interface.crate/",
-      "@type": [
-        "RO-Crate",
-        "Dataset"
-      ],
-      "description": "Nested interface.crate containing Experiment Infrastructure execution data.",
-      "license": "https://creativecommons.org/licenses/by/4.0/",
-      "name": "Interface Crate",
-      "@reverse": {
-        "hasPart": [
-          {
-            "@id": "./"
-          }
-        ],
-        "isBasedOn": [
-          {
-            "@id": "#dnf-evaluated-document"
           }
         ]
       }
@@ -219,6 +242,7 @@
         }
       ],
       "name": "LivePublication: A Dynamic and Reproducible Research Article",
+      "url": "https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_13-28-52",
       "wasGeneratedBy": [
         {
           "@id": "#dnf-presentation-environment"
@@ -231,29 +255,6 @@
         "mainEntity": [
           {
             "@id": "./"
-          }
-        ]
-      }
-    },
-    {
-      "@id": "shorelinepublication_logic.py",
-      "@type": [
-        "File",
-        "SoftwareSourceCode"
-      ],
-      "description": "Python logic for generating micropublications from the DNF document.",
-      "encodingFormat": "text/x-python",
-      "name": "Micropublication Logic",
-      "sha256": "5852afbc8f089c5c764fcacc353062e34c2d6572d1f9acacdfc2026a669a1bee",
-      "@reverse": {
-        "hasPart": [
-          {
-            "@id": "./"
-          }
-        ],
-        "wasGeneratedBy": [
-          {
-            "@id": "#research-article"
           }
         ]
       }
@@ -541,6 +542,9 @@ table.table {
                         
                         <li><a href="#%23dnf-presentation-environment">DNF Presentation Environment</a></li>
                         </ul></td>
+            </tr><tr>
+            <th style="text-align:left;" class="prop">url<span>&nbsp;</span><a href="http://schema.org/url">[?]</a></th>
+            <td style='text-align:left'><a href="https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_13-28-52">https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/tag/shoreline-crate-2025-07-22_13-28-52</a></td>
             </tr><tr>
             <th style="text-align:left;" class="prop">wasGeneratedBy</th>
             <td style='text-align:left'><ul>
