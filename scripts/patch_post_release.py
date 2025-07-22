@@ -9,14 +9,17 @@ if len(sys.argv) != 2:
 release_url = sys.argv[1]
 print(f"🔧 Patching publication.crate with release URL: {release_url}")
 
-# Dynamically resolve path to publication.crate/ relative to script location
+# Dynamically resolve path to publication.crate/ relative to project root (parent of scripts)
 SCRIPT_DIR = Path(__file__).resolve().parent
-CRATE_DIR = SCRIPT_DIR / "publication.crate"
+PROJECT_ROOT = SCRIPT_DIR.parent  # Go up one level from scripts/ to project root
+CRATE_DIR = PROJECT_ROOT / "publication.crate"
 
 print(f"📁 Loading crate from: {CRATE_DIR}")
 
 if not CRATE_DIR.exists():
     print(f"❌ publication.crate not found at {CRATE_DIR}")
+    print(f"💡 Script is in: {SCRIPT_DIR}")
+    print(f"💡 Project root: {PROJECT_ROOT}")
     sys.exit(1)
 
 interface_crate = ROCrate(str(CRATE_DIR))

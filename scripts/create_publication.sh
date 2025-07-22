@@ -59,7 +59,7 @@ wget https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/downloa
 unzip $crate_zip
 
 # Run publication
-python publication.crate/shorelinepublication_logic.py site_id --output result.html
+python publication.crate/publication_logic.py site_id --output result.html
 \`\`\`" \
   --target main
 
@@ -104,12 +104,12 @@ wget https://github.com/GusEllerm/CoastSat-shorelinepublication/releases/downloa
 unzip $crate_zip
 
 # Run publication
-python publication.crate/shorelinepublication_logic.py site_id --output result.html
+python publication.crate/publication_logic.py site_id --output result.html
 \`\`\`
 
 ## Contents
 - \`shoreline_publication.smd\` - Dynamic publication template
-- \`shorelinepublication_logic.py\` - Publication generation logic  
+- \`publication_logic.py\` - Publication generation logic  
 - \`ro-crate-metadata.json\` - RO-Crate metadata
 - \`interface.crate/\` - CoastSat workflow data and metadata"
 
