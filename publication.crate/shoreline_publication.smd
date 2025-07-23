@@ -1,51 +1,301 @@
-# CoastSat Shoreline Analysis Report
-
 ```python exec
+# This code makes the micropublication aware of its interface data.
+from rocrate.rocrate import ROCrate
+from dataclasses import dataclass
 from datetime import datetime
-date = datetime.now().strftime("%B %d, %Y")
-```
-
-**Publication Generated:** `date`{python exec}
-
-## Site Analysis Summary
-
-```python exec
-import json
-import datetime
+from typing import Optional
 from pathlib import Path
 
-# Load the data.json file
-with open('data.json', 'r') as f:
+import geopandas as gpd
+import pandas as pd
+import numpy as np
+import requests
+import json
+import os
+import re
+
+# Load the id data
+data_path = os.path.join(Path.cwd(), "data.json")
+with open(data_path, 'r') as f:
     data = json.load(f)
-
-# Extract the site ID
-site_id = data['id']
-print(f"## Analysis for Site: **{site_id}**")
-print(f"- Analysis Date: {datetime.datetime.now().strftime('%B %d, %Y')}")
-print(f"- Site Identifier: {site_id}")
-print(f"- Status: ✅ Data Processing Complete")
+site_id = data.get("id")
 ```
 
-## Data Processing Pipeline
+```python exec 
+# Load the publication.crate, interface.crate, and batch_processes.crate manifest files (if available)
+# For deployment, we primarily rely on cached data files
+publication_crate_path = Path.cwd() 
+interface_crate_path = Path.cwd() / "interface.crate" 
+batch_processes_crate_path = interface_crate_path / "batch_processes"
+
+# Check for cached data files
+cached_shoreline_path = Path.cwd() / "cached_shoreline.geojson"
+cached_primary_result_path = Path.cwd() / "cached_primary_result.geojson"
+
+print(f"Cached shoreline data available: {cached_shoreline_path.exists()}")
+print(f"Cached primary result data available: {cached_primary_result_path.exists()}")
+
+try:
+    if publication_crate_path.exists() and interface_crate_path.exists() and batch_processes_crate_path.exists():
+        publication_crate = ROCrate(publication_crate_path)
+        interface_crate = ROCrate(interface_crate_path)
+        batch_processes_crate = ROCrate(batch_processes_crate_path)
+        print("Using local crate files")
+    else:
+        print("Local crate files not found - using cached data files only")
+        publication_crate = None
+        interface_crate = None
+        batch_processes_crate = None
+except Exception as e:
+    publication_crate = None
+    interface_crate = None
+    batch_processes_crate = None
+    print(f"Error loading publication crate (will use cached data): {e}")
+```
+
+```python exec 
+# Before narrative content, some helper functions to interface with the crates:
+def query_by_link(crate, prop, target_id, match_substring=False):
+    """
+    Return entities (dict or ContextEntity) whose `prop` links to `target_id`.
+    If `match_substring` is True, will return entities whose link includes `target_id` as a substring.
+    """
+    is_rocrate = hasattr(crate, "get_entities")
+    entities = crate.get_entities() if is_rocrate else crate.get("@graph", [])
+    out = []
+
+    for e in entities:
+        val = (e.properties().get(prop) if is_rocrate else e.get(prop))
+        if val is None:
+            continue
+        vals = [val] if not isinstance(val, list) else val
+
+        ids = [
+            (x.id if hasattr(x, "id") else x.get("@id") if isinstance(x, dict) else x)
+            for x in vals
+        ]
+        if match_substring:
+            if any(target_id in _id for _id in ids if isinstance(_id, str)):
+                out.append(e)
+        else:
+            if target_id in ids:
+                out.append(e)
+    return out
+
+def filter_linked_entities_by_substring(crate, entities, prop, substring):
+    """
+    For a given list of entities, follow `prop` links (e.g., 'object') and return
+    all linked entities whose `@id` includes `substring`.
+    """
+    is_rocrate = hasattr(crate, "get_entities")
+    all_entities = crate.get_entities() if is_rocrate else crate.get("@graph", [])
+
+    # Index entities by ID for fast lookup
+    id_index = {
+        (e.id if hasattr(e, "id") else e.get("@id")): e
+        for e in all_entities
+    }
+    matched = []
+    for entity in entities:
+        val = entity.properties().get(prop) if is_rocrate else entity.get(prop)
+        if val is None:
+            continue
+
+        vals = [val] if not isinstance(val, list) else val
+
+        for v in vals:
+            target_id = (
+                v.id if hasattr(v, "id") else v.get("@id") if isinstance(v, dict) else v
+            )
+
+            if not isinstance(target_id, str):
+                continue
+
+            if substring in target_id:
+                linked_entity = id_index.get(target_id)
+                if linked_entity:
+                    matched.append(linked_entity)
+
+    return matched
+
+def resolve_linked_entity(crate, entity, prop):
+    """
+    Follow a single-valued property (like 'instrument') from an entity,
+    and return the linked entity (resolved from the crate).
+    Returns None if the property is missing or not resolvable.
+    """
+    is_rocrate = hasattr(crate, "get_entities")
+    all_entities = crate.get_entities() if is_rocrate else crate.get("@graph", [])
+
+    # Build a lookup of @id to entity
+    id_index = {
+        (e.id if hasattr(e, "id") else e.get("@id")): e
+        for e in all_entities
+    }
+
+    val = entity.properties().get(prop) if is_rocrate else entity.get(prop)
+    if val is None:
+        return None
+
+    # Normalize to string ID
+    if isinstance(val, list):
+        raise ValueError(f"Expected only one linked entity in property '{prop}', but found a list.")
+    
+    target_id = (
+        val.id if hasattr(val, "id") else val.get("@id") if isinstance(val, dict) else val
+    )
+
+    return id_index.get(target_id)
+
+# And now helper general helper functions for data transofmation and narrative generation
+def convert_to_raw_url(github_url: str) -> str:
+    """
+    Converts a GitHub blob URL to a raw.githubusercontent URL.
+    """
+    match = re.match(r"https://github\.com/(.+)/blob/([a-f0-9]+)/(.+)", github_url)
+    if not match:
+        raise ValueError("Invalid GitHub blob URL format.")
+    user_repo, commit_hash, path = match.groups()
+    return f"https://raw.githubusercontent.com/{user_repo}/{commit_hash}/{path}"
+
+def get_location_name(geometry):
+    """
+    Get a human-readable location name from a shapely geometry using reverse geocoding.
+    Uses the centroid of the geometry for the lookup.
+    """
+    try:
+        # Get the centroid of the geometry
+        centroid = geometry.centroid
+        lon, lat = centroid.x, centroid.y
+        
+        location = requests.get(
+            url="https://nominatim.openstreetmap.org/reverse",
+            params={
+                'lat': lat,
+                'lon': lon,
+                'format': 'json',
+                'zoom': 10,
+                'addressdetails': 1
+            },
+            headers={'User-Agent': 'CoastSat-shoreline-publication'}
+        ).json().get('display_name')
+        
+        return location
+    except Exception as e:
+        print(f"Error getting location name: {e}")
+        return "Unknown location"
+
+def get_appended_rows(
+    old_url: str,
+    new_url: str,
+    filter_column: str = None,
+    filter_value: str = None
+) -> pd.DataFrame:
+    raw_old_url = convert_to_raw_url(old_url)
+    raw_new_url = convert_to_raw_url(new_url)
+    
+    old_df = pd.read_csv(raw_old_url)
+    new_df = pd.read_csv(raw_new_url)
+    
+    appended_df = pd.concat([new_df, old_df]).drop_duplicates(keep=False)
+
+    # If you're looking for a particular transect column (e.g., 'sar0003-0003'),
+    # this assumes the filter_column is in the wide format as a column name.
+    if filter_column and filter_column in appended_df.columns:
+        # Only keep rows where that transect column is not NaN
+        appended_df = appended_df[~appended_df[filter_column].isna()]
+
+    return appended_df
+```
 
 ```python exec
-print("### Processing Steps Completed:")
-print("1. 🛰️ Satellite imagery acquired")
-print("2. 🌊 Shoreline extraction performed") 
-print("3. 📊 Statistical analysis completed")
-print("4. 📈 Trend analysis generated")
-print("5. 📋 Publication report created")
-```
+# Get data for the site report - use cached data files
+cached_shoreline_path = Path.cwd() / "cached_shoreline.geojson"
+if cached_shoreline_path.exists():
+    shoreline_gdf = gpd.read_file(cached_shoreline_path)
+else:
+    print("Error: No cached shoreline data found. Run publication_logic.py to cache data first.")
+    raise FileNotFoundError("Cached shoreline data not found")
 
-## Technical Details
+
+current_site_data = shoreline_gdf[shoreline_gdf['id'] == site_id] # Filter the shoreline data by the current site_id
+```
 
 ```python exec
-print(f"**System Information:**")
-print(f"- Template Location: `src/templates/shoreline_publication.smd`")
-print(f"- Processing Engine: Stencila Dynamic Documents")
-print(f"- Publication Format: RO-Crate")
-print(f"- Site Data: {site_id} from CoastSat database")
+# Get location name in a separate block to avoid serialization issues
+try:
+    if len(current_site_data) > 0:
+        geometry = current_site_data['geometry'].iloc[0]
+        location_name = get_location_name(geometry)
+    else:
+        location_name = "No data found for this site"
+except Exception as e:
+    print(f"Warning: Could not get location name: {e}")
+    location_name = "Unknown location"
+
+print(f"Location: {location_name}")
 ```
 
----
-*This report was generated automatically by the CoastSat Shoreline Publication System*
+```python exec
+# Get data for the site report - use cached primary result data
+cached_primary_result_path = Path.cwd() / "cached_primary_result.geojson"
+if cached_primary_result_path.exists():
+    primary_result_gdf = gpd.read_file(cached_primary_result_path)
+else:
+    print("Error: No cached primary result data found. Run publication_logic.py to cache data first.")
+    raise FileNotFoundError("Cached primary result data not found")
+
+# Let's examine the structure to understand how to properly filter by site_id
+print(f"Primary result columns: {primary_result_gdf.columns.tolist()}")
+
+# Try filtering by site_id
+site_primary_data = primary_result_gdf[primary_result_gdf['site_id'] == site_id]
+print(f"Direct match on 'site_id' column - found {len(site_primary_data)} rows")
+
+
+```
+
+# Site Report: `site_id`{python exec}
+### Location: `location_name`{python exec}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+> [!info]+ Site statistics 
+> ```python exec
+> # Convert the DataFrame to a simple format for table display with units
+> fields_to_keep = ['id', 'area', 'beach_length', 'easting', 'northing', 'median_slope']
+> site_data_clean = current_site_data[fields_to_keep].reset_index(drop=True).copy()
+> 
+> # Apply formatting with units in a loop
+> format_config = {
+>     'area': (1000000, 3, ' km²'),
+>     'beach_length': (1000, 2, ' km'),
+>     'easting': (1000, 2, ' km'),
+>     'northing': (1000, 2, ' km'),
+>     'median_slope': (1, 4, '')
+> }
+> 
+> for col, (divisor, decimals, unit) in format_config.items():
+>     if col in site_data_clean.columns:
+>         site_data_clean[col] = pd.to_numeric(site_data_clean[col], errors='coerce')
+>         site_data_clean[col] = (site_data_clean[col] / divisor).round(decimals).astype(str) + unit
+> 
+> site_data_clean = site_data_clean.fillna('')
+> site_data_clean
+> ```
