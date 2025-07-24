@@ -36,8 +36,10 @@ from rocrate.rocrate import ROCrate
 from dataclasses import dataclass
 from types import SimpleNamespace
 from datetime import datetime
+import plotly.express as px
 from typing import Optional
 from pathlib import Path
+
 
 import geopandas as gpd
 import pandas as pd
@@ -537,21 +539,181 @@ This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metr
 :::::: if zone_metrics.zone_type == "Moderate Erosion" or zone_metrics.zone_type == "Rapid Erosion"
 
 ```python exec
+import plotly.graph_objects as go
 import plotly.express as px
-fig = px.line(x=[1, 2, 3], y=[1, 4, 9])
-fig.show()
+from datetime import datetime
+import numpy as np
+from scipy import stats
+
+# Create a time series plot for the zone transects
+if not site_time_series_df.empty and zone_transects:
+    # Convert dates column to datetime if it's not already
+    site_time_series_df['dates'] = pd.to_datetime(site_time_series_df['dates'])
+    
+    # Create the plotly figure
+    fig = go.Figure()
+    
+    # Get transect IDs from zone_transects
+    transect_ids = [transect['id'] for transect in zone_transects]
+    
+    # Colors for different transects (cycle through a color palette)
+    colors = px.colors.qualitative.Set1
+    
+    # Collect all data to calculate zone-wide average baseline
+    all_transect_data = []
+    all_dates = set()
+    
+    # First pass: collect all data and find common dates
+    valid_transects = []
+    for transect_id in transect_ids:
+        if transect_id in site_time_series_df.columns:
+            transect_data = site_time_series_df[['dates', transect_id]].dropna()
+            if not transect_data.empty:
+                valid_transects.append((transect_id, transect_data))
+                all_dates.update(transect_data['dates'])
+    
+    if valid_transects:
+        # Calculate zone-wide average baseline from all transects
+        all_values = []
+        for transect_id, transect_data in valid_transects:
+            all_values.extend(transect_data[transect_id].tolist())
+        zone_mean_baseline = np.mean(all_values)
+        
+        # Calculate zone average time series
+        all_dates_sorted = sorted(all_dates)
+        zone_avg_values = []
+        zone_dates = []
+        
+        for date in all_dates_sorted:
+            date_values = []
+            for transect_id, transect_data in valid_transects:
+                matching_rows = transect_data[transect_data['dates'] == date]
+                if not matching_rows.empty:
+                    # Adjust relative to zone baseline
+                    relative_val = matching_rows[transect_id].iloc[0] - zone_mean_baseline
+                    date_values.append(relative_val)
+            
+            # Include ALL dates, even if only one transect has data (removed the restriction)
+            if date_values:  # This will now include dates with any number of transects >= 1
+                zone_avg_values.append(np.mean(date_values))
+                zone_dates.append(date)
+        
+        # Add individual transect lines (lighter/thinner)
+        for i, (transect_id, transect_data) in enumerate(valid_transects):
+            relative_change = transect_data[transect_id] - zone_mean_baseline
+            
+            fig.add_trace(go.Scatter(
+                x=transect_data['dates'],
+                y=relative_change,
+                mode='lines',
+                name=f'{transect_id}',
+                line=dict(color=colors[i % len(colors)], width=1),
+                opacity=0.6,
+                hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'
+            ))
+        
+        # Add zone average line (prominent) with smoothing
+        if zone_dates and zone_avg_values:
+            # Apply rolling average smoothing to the zone average (6-month window)
+            zone_df = pd.DataFrame({'dates': zone_dates, 'values': zone_avg_values})
+            zone_df = zone_df.sort_values('dates')
+            
+            # Calculate rolling mean with a 6-month window (approximately 6 observations)
+            window_size = min(6, len(zone_df) // 4)  # Adaptive window size
+            if window_size >= 2:
+                zone_df['smoothed'] = zone_df['values'].rolling(window=window_size, center=True, min_periods=1).mean()
+                smoothed_values = zone_df['smoothed'].tolist()
+            else:
+                smoothed_values = zone_avg_values
+            
+            fig.add_trace(go.Scatter(
+                x=zone_dates,
+                y=smoothed_values,
+                mode='lines+markers',
+                name='Zone Average (Smoothed)',
+                line=dict(color='black', width=3),
+                marker=dict(size=4, color='black'),
+                hovertemplate='Zone Average: %{y:.1f}m<extra></extra>'
+            ))
+            
+            # Calculate and add single zone trendline
+            if len(zone_dates) > 2:
+                dates_numeric = pd.to_numeric(pd.Series(zone_dates))
+                slope, intercept, r_value, p_value, std_err = stats.linregress(dates_numeric, zone_avg_values)
+                
+                # Generate trendline
+                trend_y = slope * dates_numeric + intercept
+                annual_rate = slope * 365.25 * 24 * 3600 * 1000  # Convert to m/year
+                
+                fig.add_trace(go.Scatter(
+                    x=zone_dates,
+                    y=trend_y,
+                    mode='lines',
+                    name=f'Zone Trend ({annual_rate:.1f} m/yr)',
+                    line=dict(color='red', width=2, dash='dash'),
+                    hovertemplate='Trend: %{y:.1f}m<extra></extra>'
+                ))
+    
+    # Add baseline reference line at y=0
+    fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5,
+                  annotation_text="Zone Baseline", 
+                  annotation_position="bottom right")
+    
+    # Update layout with bottom legend
+    fig.update_layout(
+        title=f'Shoreline Position Time Series - {zone_metrics.zone_type} Zone<br><sub>Relative to zone mean baseline</sub>',
+        xaxis_title='Date',
+        yaxis_title='Cross-shore change [m]',
+        hovermode='x unified',
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=9)
+        ),
+        width=800,
+        height=400,
+        margin=dict(l=50, r=20, t=60, b=80),  # More bottom margin for legend
+        font=dict(size=10)
+    )
+    
+    # Add grid with light color and extend x-axis range for buffer
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
+    
+    # Ensure the latest data is always visible, prioritizing recent trends
+    if zone_dates and len(zone_dates) > 1:
+        end_date = pd.to_datetime(zone_dates[-1])   # Most recent date
+        start_date = pd.to_datetime(zone_dates[0])  # Earliest date
+        
+        # Calculate total data span
+        data_span_years = (end_date - start_date).days / 365.25
+        
+        # For long time series, show the most recent portion that fits well
+        if data_span_years > 20:
+            # Show last 20 years to ensure recent data is prominent
+            view_start = end_date - pd.DateOffset(years=20)
+            view_end = end_date + pd.DateOffset(years=1)
+        else:
+            # Show all data with small buffers
+            view_start = start_date - pd.DateOffset(years=1)
+            view_end = end_date + pd.DateOffset(years=1)
+        
+        fig.update_xaxes(range=[view_start, view_end])
+    
+    # Show the plot
+    fig.show()
+    
+    print(f"Plotted {len(valid_transects)} transects from the {zone_metrics.zone_type} zone.")
+    print(f"Zone baseline: {zone_mean_baseline:.1f}m (average of all transect means)")
+else:
+    print("No time series data available or no transects in zone.")
 ```
 
 ::::::
 <!--- end of plotly conditional --->
-
-<!-- describe transect data here -->
-:::::: for transect in zone_transects
-
-transect here
-
-::::::
-<!-- end transect loop -->
 
 :::::
 
