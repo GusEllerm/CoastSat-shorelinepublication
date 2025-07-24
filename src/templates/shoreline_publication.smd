@@ -1,7 +1,40 @@
+```css raw
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: sans-serif;
+    font-size: 14px;
+    background-color: #fff;
+    color: #333;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 6px 10px !important;
+    text-align: left;
+    vertical-align: middle;
+}
+
+th {
+    background-color: #f4f4f4;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}
+```
+
 ```python exec
 # This code makes the micropublication aware of its interface data.
 from rocrate.rocrate import ROCrate
 from dataclasses import dataclass
+from types import SimpleNamespace
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
@@ -10,6 +43,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 import requests
+import folium
 import json
 import os
 import re
@@ -32,15 +66,11 @@ batch_processes_crate_path = interface_crate_path / "batch_processes"
 cached_shoreline_path = Path.cwd() / "cached_shoreline.geojson"
 cached_primary_result_path = Path.cwd() / "cached_primary_result.geojson"
 
-print(f"Cached shoreline data available: {cached_shoreline_path.exists()}")
-print(f"Cached primary result data available: {cached_primary_result_path.exists()}")
-
 try:
     if publication_crate_path.exists() and interface_crate_path.exists() and batch_processes_crate_path.exists():
         publication_crate = ROCrate(publication_crate_path)
         interface_crate = ROCrate(interface_crate_path)
         batch_processes_crate = ROCrate(batch_processes_crate_path)
-        print("Using local crate files")
     else:
         print("Local crate files not found - using cached data files only")
         publication_crate = None
@@ -217,8 +247,25 @@ else:
     print("Error: No cached shoreline data found. Run publication_logic.py to cache data first.")
     raise FileNotFoundError("Cached shoreline data not found")
 
-
 current_site_data = shoreline_gdf[shoreline_gdf['id'] == site_id] # Filter the shoreline data by the current site_id
+
+# Now get the timeseries data for the site
+time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-transecttimeseriestidallycorrected-2")
+site_time_series_entity = [
+    e for e in time_series_data_by_site
+    if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
+][0]  # Get the first match
+site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
+# Download and load the site time series CSV data
+if site_time_series_url:
+    try:
+        site_time_series_df = pd.read_csv(site_time_series_url)
+    except Exception as e:
+        print(f"Error loading site time series data: {e}")
+        site_time_series_df = pd.DataFrame()
+else:
+    print("No site time series URL found.")
+    site_time_series_df = pd.DataFrame()
 ```
 
 ```python exec
@@ -232,8 +279,6 @@ try:
 except Exception as e:
     print(f"Warning: Could not get location name: {e}")
     location_name = "Unknown location"
-
-print(f"Location: {location_name}")
 ```
 
 ```python exec
@@ -245,38 +290,14 @@ else:
     print("Error: No cached primary result data found. Run publication_logic.py to cache data first.")
     raise FileNotFoundError("Cached primary result data not found")
 
-# Let's examine the structure to understand how to properly filter by site_id
-print(f"Primary result columns: {primary_result_gdf.columns.tolist()}")
-
-# Try filtering by site_id
 site_primary_data = primary_result_gdf[primary_result_gdf['site_id'] == site_id]
-print(f"Direct match on 'site_id' column - found {len(site_primary_data)} rows")
-
-
 ```
 
 # Site Report: `site_id`{python exec}
 ### Location: `location_name`{python exec}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-> [!info]+ Site statistics 
+> [!info]+ Site Statistics
+> This table summarizes the key statistics for the site.
 > ```python exec
 > # Convert the DataFrame to a simple format for table display with units
 > fields_to_keep = ['id', 'area', 'beach_length', 'easting', 'northing', 'median_slope']
@@ -290,12 +311,304 @@ print(f"Direct match on 'site_id' column - found {len(site_primary_data)} rows")
 >     'northing': (1000, 2, ' km'),
 >     'median_slope': (1, 4, '')
 > }
-> 
+>  
 > for col, (divisor, decimals, unit) in format_config.items():
 >     if col in site_data_clean.columns:
 >         site_data_clean[col] = pd.to_numeric(site_data_clean[col], errors='coerce')
 >         site_data_clean[col] = (site_data_clean[col] / divisor).round(decimals).astype(str) + unit
-> 
+>  
 > site_data_clean = site_data_clean.fillna('')
 > site_data_clean
 > ```
+
+```python exec
+# Import and run narrative zoning analysis
+import sys
+sys.path.insert(0, str(Path.cwd()))
+from narrative_zoning import run_narrative_zoning
+
+aoi_definitions =  {
+    "No Data": {
+        "priority": 1,
+        "conditions": [
+        {"field": "trend", "operator": "is_null", "value": None}
+        ],
+        "description_template": "No data zone where insufficient observations prevent trend analysis."
+    },
+    "Rapid Erosion": {
+        "priority": 2,
+        "conditions": [
+        {"field": "trend", "operator": "<", "value": -0.8}
+        ],
+        "description_template": "Critical erosion hotspot with average retreat of {avg_trend_abs:.1f}m/year. This area requires immediate attention and monitoring."
+    },
+    "Moderate Erosion": {
+        "priority": 3,
+        "conditions": [
+        {"field": "trend", "operator": "<", "value": -0.3}
+        ],
+        "description_template": "Erosion zone showing consistent retreat averaging {avg_trend_abs:.1f}m/year. Ongoing erosion processes are evident."
+    },
+    "Rapid Accretion": {
+        "priority": 4,
+        "conditions": [
+        {"field": "trend", "operator": ">", "value": 0.8}
+        ],
+        "description_template": "Dynamic accretion zone with significant sand accumulation averaging {avg_trend:.1f}m/year. This area shows strong sediment deposition."
+    },
+    "Moderate Accretion": {
+        "priority": 5,
+        "conditions": [
+        {"field": "trend", "operator": ">", "value": 0.3}
+        ],
+        "description_template": "Stable accretion zone with gradual beach building averaging {avg_trend:.1f}m/year. Positive sediment balance is maintained."
+    },
+    "High Uncertainty": {
+        "priority": 6,
+        "conditions": [
+        {"field": "r2_score", "operator": "<", "value": 0.05, "allow_null": True},
+        {"field": "rmse", "operator": ">", "value": 30, "allow_null": True}
+        ],
+        "logic": "OR",  # Either condition can trigger this zone
+        "description_template": "Data-limited zone where shoreline trends are difficult to determine reliably. Additional monitoring may be needed."
+    },
+    "Steep Beach": {
+        "priority": 7,
+        "conditions": [
+        {"field": "beach_slope", "operator": ">", "value": 0.08}
+        ],
+        "description_template": "High-energy beach zone characterized by steep beach profiles. This area may be vulnerable to storm impacts."
+    },
+    "Low Energy": {
+        "priority": 8,
+        "conditions": [
+        {"field": "beach_slope", "operator": "<", "value": 0.04}
+        ],
+        "description_template": "Protected shoreline segment with gentle beach profiles indicating low wave energy conditions."
+    },
+    "Stable": {
+        "priority": 9,
+        "conditions": [],  # Default catch-all zone
+        "description_template": "Stable shoreline segment showing minimal change over time. This area exhibits natural equilibrium."
+    }
+    }
+
+min_zone_length = 3  # Minimum length in km for a zone to be considered valid
+# Get areas of interest (AOIs) for the site
+aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions)
+aoi_zones = aois.get('zones', [])
+all_transects = aois.get('transects', [])
+```
+
+::: if aoi_zones is not []
+
+:::: for zone in aoi_zones
+
+```python exec
+def extract_zone_metrics(zone):
+    def get(key, default=0, round_to=None):
+        val = zone.get(key, default)
+        if val is None:
+            return "N/A"
+        return round(val, round_to) if round_to is not None else val
+
+    metrics = {
+        "zone_type": zone.get("zone_type", "Unknown"),
+        "length_km": round(abs(zone.get("length_meters", 0)) / 1000, 2),
+        "mean_trend": get("mean_trend", 0, 2),
+        "avg_beach_slope": get("avg_beach_slope", 0, 4),
+        "r2_score": get("avg_r2", 0, 4),
+        "avg_rmse": get("avg_rmse", None, 2),
+        "avg_mae": get("avg_mae", None, 2),
+        "avg_cil": get("avg_cil", None, 4),
+        "avg_ciu": get("avg_ciu", None, 4),
+        "avg_orientation": get("avg_orientation", None, 1),
+        "narrative_description": zone.get("narrative_description", "No description available."),
+        "transect_count": zone.get("transect_count", 0),
+        "transect_ids": zone.get("transect_ids", []),
+        "start_transect_id": zone.get("start_transect_id", "N/A"),
+        "end_transect_id": zone.get("end_transect_id", "N/A"),
+        "zone_name": zone.get("zone_name", "Unnamed Zone"),
+    }
+
+    return SimpleNamespace(**metrics)
+
+zone_metrics = extract_zone_metrics(zone)
+```
+
+```python exec 
+import geopandas as gpd
+from shapely.geometry import LineString
+import matplotlib.pyplot as plt
+import contextily as cx  # Optional for basemap
+import folium
+
+def get_zone_transects(zone_metrics, all_transects):
+    id_set = set(zone_metrics.transect_ids)
+    results = []
+    for tid, t in all_transects.items():
+        if tid in id_set:
+            t_copy = dict(t)
+            t_copy["id"] = tid
+            results.append(t_copy)
+    return results
+
+# Convert transects into a GeoDataFrame
+def build_transect_gdf(transects):
+    features = []
+    for t in transects:
+        coords = t["geometry"]["coordinates"]
+        line = LineString(coords)
+        features.append({
+            "id": t["id"],
+            "site_id": t.get("site_id"),
+            "geometry": line
+        })
+    return gpd.GeoDataFrame(features, crs="EPSG:4326")
+
+def save_zone_transect_map(zone_metrics, all_transects, out_path):
+    zone_transects = get_zone_transects(zone_metrics, all_transects)
+    gdf = build_transect_gdf(zone_transects)
+    ax = gdf.plot(figsize=(6, 6), linewidth=2)
+    cx.add_basemap(ax, crs="EPSG:4326")
+    ax.set_title(f"Zone: {zone_metrics.zone_type}")
+    ax.set_axis_off()
+    plt.savefig(out_path, bbox_inches="tight")
+    plt.close()
+
+def save_interactive_transect_map(gdf, filename="zone_transects_map.html"):
+    center = gdf.geometry.unary_union.centroid.coords[0][::-1]  # (lat, lon)
+    m = folium.Map(location=center, zoom_start=12, tiles="OpenStreetMap")
+
+    folium.GeoJson(
+        gdf.to_json(),
+        name="Transects",
+        tooltip=folium.GeoJsonTooltip(fields=["id", "site_id"])
+    ).add_to(m)
+
+    map_path = os.path.join(dir, "zone_transects_map.html")
+    m.save(map_path)
+    return map_path
+
+# TODO: Map stuff is waiting for integration 
+zone_transects = get_zone_transects(zone_metrics, all_transects) # Zone_transects are used for more than just the map, so we keep them
+# transect_gdf = build_transect_gdf(zone_transects)
+# map_path = save_interactive_transect_map(transect_gdf)
+
+```
+
+<!--- ::: include zone_transects_map.html currently not working in Stencila --->
+
+### Zone: `zone_metrics.zone_type`{python exec}
+
+This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metrics.transect_count`{python exec} transects, from `zone_metrics.start_transect_id`{python exec} to `zone_metrics.end_transect_id`{python exec}.
+`zone_metrics.narrative_description`{python exec}
+
+:::: table 
+
+`zone_metrics.zone_name`{python exec} Zone Metrics
+
+| Metric      | Value                              |
+|:-----------:|:----------------------------------:|
+| **Length**      | `zone_metrics.length_km`{python exec} km         |
+| **Mean Trend**  | `zone_metrics.mean_trend`{python exec} m/year    |
+| **Beach Slope** | `zone_metrics.avg_beach_slope`{python exec}      |
+| **R² Score**    | `zone_metrics.r2_score`{python exec}             |
+::::
+
+:::: table 
+
+`zone_metrics.zone_name`{python exec} Zone Quality Metrics
+
+| Metric            | Value                                      |
+|:-----------------:|:------------------------------------------:|
+| **RMSE**          | `zone_metrics.avg_rmse`{python exec} m        |
+| **MAE**           | `zone_metrics.avg_mae`{python exec} m         |
+| **Confidence Interval** | [`zone_metrics.avg_cil`{python exec}, `zone_metrics.avg_ciu`{python exec}] |
+| **Orientation**   | `zone_metrics.avg_orientation`{python exec} °       |
+
+::::
+
+#### Transect Summaries
+
+::::: if "nzd" in site_id
+
+<!--- conditionals for plotly graphs --->
+:::::: if zone_metrics.zone_type == "Moderate Erosion" or zone_metrics.zone_type == "Rapid Erosion"
+
+```python exec
+import plotly.express as px
+fig = px.line(x=[1, 2, 3], y=[1, 4, 9])
+fig.show()
+```
+
+::::::
+<!--- end of plotly conditional --->
+
+<!-- describe transect data here -->
+:::::: for transect in zone_transects
+
+transect here
+
+::::::
+<!-- end transect loop -->
+
+:::::
+
+::::
+
+::: else
+
+No areas of interest (AOIs) were found for the site.
+
+:::
+
+### Narrative Generation Configuration
+
+#### Area of Interest (AOI) Definitions
+
+```python exec
+# simple mapping of opperators to their string representations
+operator_to_english = {
+    "<": "less than",
+    "<=": "less than or equal to",
+    ">": "greater than",
+    ">=": "greater than or equal to",
+    "==": "equal to",
+    "!=": "not equal to",
+    "is_null": "is null (missing)"
+}
+```
+
+The area of interest (AOI) definitions are used to categorize shoreline segments based on their trends and characteristics. 
+Each AOI has a priority, conditions for classification, and a description template for narrative generation.
+
+This template returns zones with, at minimum, `min_zone_length`{python exec} transects.  
+
+::: for aoi_def in aoi_definitions
+
+> [!info]+ Area of Interest
+> ### Title: **`aoi_def[0]`{python exec}**
+> #### Priority: **`aoi_def[1]['priority']`{python exec}**
+> 
+> :::: if aoi_def[1]['conditions'] 
+> 
+> Conditions:
+> 
+> ::::: for condition in aoi_def[1]['conditions']
+>
+> :::::: if condition["value"] is not None
+> 
+> If the `condition['field']`{python exec} of the intersect is `operator_to_english[condition['operator']]`{python exec} than `condition['value']`{python exec}.
+> 
+> :::::: else 
+>
+> If the `condition['field']`{python exec} of the intersect `operator_to_english[condition['operator']]`{python exec}.
+>
+> ::::::
+>
+> :::::
+> 
+> ::::
+
+:::

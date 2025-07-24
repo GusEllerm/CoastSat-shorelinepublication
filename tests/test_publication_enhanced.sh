@@ -28,7 +28,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Set default site ID if none provided
 if [ -z "$CUSTOM_SITE_ID" ]; then
     CUSTOM_SITE_ID="test_site_$(date +%s)"
     echo "📝 No site ID provided, using default: $CUSTOM_SITE_ID"
@@ -43,10 +42,6 @@ if [ -d "publication.crate" ]; then
 else
     echo "ℹ️  No existing publication.crate/ to remove"
 fi
-
-echo ""
-echo "🏗️  Regenerating publication.crate..."
-echo "⏳ This may take a while as it downloads interface.crate..."
 
 # Run crate_builder.py with timeout to avoid hanging indefinitely
 timeout 300 python src/crate_builder.py || {
@@ -66,8 +61,6 @@ echo ""
 echo "📋 Checking publication.crate contents..."
 if [ -f "publication.crate/shoreline_publication.smd" ]; then
     echo "✅ Template file found in publication.crate/"
-    echo "Template content:"
-    cat "publication.crate/shoreline_publication.smd" | sed 's/^/   │ /'
     echo ""
 else
     echo "❌ Template file not found in publication.crate/"
@@ -93,18 +86,6 @@ if [ -f "shorelinepublication.html" ]; then
     echo "📊 File size: $(ls -lh shorelinepublication.html | awk '{print $5}')"
     echo "📅 Generated: $(date)"
     echo "🆔 Site ID used: $CUSTOM_SITE_ID"
-    echo ""
-    echo "🔍 Content verification:"
-    CONTENT_COUNT=$(grep -c "testing" shorelinepublication.html || echo "0")
-    if [ "$CONTENT_COUNT" -gt 0 ]; then
-        echo "✅ Found $CONTENT_COUNT instances of 'testing' in HTML"
-        echo "🔍 Preview of content:"
-        grep -A2 -B2 "testing" shorelinepublication.html | head -5 | sed 's/^/   │ /'
-    else
-        echo "⚠️  No 'testing' content found in HTML"
-        echo "🔍 HTML structure:"
-        grep -E "(stencila-|<title>|<h1>)" shorelinepublication.html | head -3 | sed 's/^/   │ /'
-    fi
     echo ""
     echo "🌐 To view the result:"
     echo "   file://$(pwd)/shorelinepublication.html"

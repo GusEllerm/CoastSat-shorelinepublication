@@ -156,6 +156,22 @@ def prepare_temp_directory(template_path, site_id):
                 shutil.copy(cache_path, temp_dir_path / "cached_primary_result.geojson")
                 print(f"Copied cached primary result data to temp directory")
     
+    # Copy the narrative zoning script to temp directory
+    narrative_zoning_script = crate_root / "narrative_zoning.py"
+    if narrative_zoning_script.exists():
+        shutil.copy(narrative_zoning_script, temp_dir_path / "narrative_zoning.py")
+        print(f"Copied narrative zoning script to temp directory")
+    else:
+        print(f"Warning: narrative_zoning.py not found at {narrative_zoning_script}")
+    
+    # Copy transects file if available
+    transects_file = crate_root / "transects_extended.geojson"
+    if transects_file.exists():
+        shutil.copy(transects_file, temp_dir_path / "transects_extended.geojson")
+        print(f"Copied transects file to temp directory")
+    else:
+        print(f"Warning: transects_extended.geojson not found at {transects_file}")
+    
     # Add top-level ro-crate-metadata.json
     top_level_manifest = crate_root / "ro-crate-metadata.json"
     if top_level_manifest.exists():
@@ -221,8 +237,8 @@ def evaluate_shorelinepublication(temp_dir_path):
         
         dnf_eval_json = f"{temp_dir_path}/DNF_eval.json"
         print(f"Rendering {dnf_json} to {dnf_eval_json}")
-        subprocess.run(["stencila", "render", dnf_json, dnf_eval_json, "--force-all", "--pretty"], check=True)
-        
+        subprocess.run(["stencila", "render", dnf_json, dnf_eval_json, "--force-all", "--pretty", "--", f"--dir={temp_dir_path}"], check=True)
+
         final_path = f"{temp_dir_path}/shorelinepublication.html"
         print(f"Converting {dnf_eval_json} to {final_path}")
         subprocess.run(["stencila", "convert", dnf_eval_json, final_path, "--pretty"], check=True)

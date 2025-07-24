@@ -182,6 +182,36 @@ def add_publication_logic(crate):
     })
     return logic_file
 
+def add_narrative_zoning_script(crate):
+    """Add the narrative zoning analysis script to the crate."""
+    script_source = Path("src/narrative_zoning.py")
+    if not script_source.exists():
+        raise FileNotFoundError(f"Narrative zoning script not found: {script_source}")
+    
+    # Copy the script to the crate directory
+    crate_path = Path(crate.root_dataset.id)
+    narrative_script = crate_path / "narrative_zoning.py"
+    shutil.copy(script_source, narrative_script)
+    
+    # Calculate SHA256 hash
+    sha256_hash = hashlib.sha256(open(script_source, "rb").read()).hexdigest()
+    
+    # Add to crate
+    script_file = crate.add_file("narrative_zoning.py", properties={
+        "@type": ["File", "SoftwareSourceCode", "SoftwareApplication"],
+        "name": "Narrative Zoning Analysis Script",
+        "description": "Python script for analyzing shoreline transects and identifying narrative zones with similar characteristics.",
+        "encodingFormat": "text/x-python",
+        "programmingLanguage": "Python",
+        "sha256": sha256_hash,
+        "applicationCategory": "Data Analysis",
+        "keywords": ["shoreline", "coastal", "narrative", "zoning", "transects", "analysis"]
+    })
+    
+    # TODO: Add a RO-Crate entity for this file
+    
+    return script_file
+
 def create_publication_crate(crate_dir="publication.crate"):
     crate = ROCrate()
     crate.name = "Publication Crate"
@@ -199,6 +229,7 @@ def create_publication_crate(crate_dir="publication.crate"):
     dnf_presentation_env = add_dnf_presentation(crate)
     research_article = add_research_article(crate)
     publication_logic = add_publication_logic(crate)
+    narrative_zoning = add_narrative_zoning_script(crate)
 
     print(dnf_presentation_env)
 

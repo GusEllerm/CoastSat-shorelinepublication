@@ -1,2 +1,4 @@
 rocrate
 geopandas
+contextily
+folium
