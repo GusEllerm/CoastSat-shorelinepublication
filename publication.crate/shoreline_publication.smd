@@ -266,8 +266,6 @@ if site_time_series_url:
 else:
     print("No site time series URL found.")
     site_time_series_df = pd.DataFrame()
-
-print(site_time_series_df.head())  # Display the first few rows of the time series data for debugging
 ```
 
 ```python exec
@@ -539,7 +537,9 @@ This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metr
 :::::: if zone_metrics.zone_type == "Moderate Erosion" or zone_metrics.zone_type == "Rapid Erosion"
 
 ```python exec
-
+import plotly.express as px
+fig = px.line(x=[1, 2, 3], y=[1, 4, 9])
+fig.show()
 ```
 
 ::::::
