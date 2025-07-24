@@ -36,8 +36,10 @@ from rocrate.rocrate import ROCrate
 from dataclasses import dataclass
 from types import SimpleNamespace
 from datetime import datetime
+import plotly.express as px
 from typing import Optional
 from pathlib import Path
+
 
 import geopandas as gpd
 import pandas as pd
@@ -537,21 +539,12 @@ This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metr
 :::::: if zone_metrics.zone_type == "Moderate Erosion" or zone_metrics.zone_type == "Rapid Erosion"
 
 ```python exec
-import plotly.express as px
 fig = px.line(x=[1, 2, 3], y=[1, 4, 9])
 fig.show()
 ```
 
 ::::::
 <!--- end of plotly conditional --->
-
-<!-- describe transect data here -->
-:::::: for transect in zone_transects
-
-transect here
-
-::::::
-<!-- end transect loop -->
 
 :::::
 
