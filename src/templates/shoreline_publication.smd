@@ -32,18 +32,24 @@ tr:hover {
 
 ```python exec
 # This code makes the micropublication aware of its interface data.
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.linear_model import LinearRegression
+from typing import Optional, List, Dict, Any
 from rocrate.rocrate import ROCrate
 from dataclasses import dataclass
 from types import SimpleNamespace
 from datetime import datetime
-import plotly.express as px
-from typing import Optional
 from pathlib import Path
+from scipy import stats
+from math import sqrt
 
-
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+import plotly.express as px
 import geopandas as gpd
 import pandas as pd
 import numpy as np
+import statistics
 import requests
 import folium
 import json
@@ -250,24 +256,6 @@ else:
     raise FileNotFoundError("Cached shoreline data not found")
 
 current_site_data = shoreline_gdf[shoreline_gdf['id'] == site_id] # Filter the shoreline data by the current site_id
-
-# Now get the timeseries data for the site
-time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-transecttimeseriestidallycorrected-2")
-site_time_series_entity = [
-    e for e in time_series_data_by_site
-    if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
-][0]  # Get the first match
-site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
-# Download and load the site time series CSV data
-if site_time_series_url:
-    try:
-        site_time_series_df = pd.read_csv(site_time_series_url)
-    except Exception as e:
-        print(f"Error loading site time series data: {e}")
-        site_time_series_df = pd.DataFrame()
-else:
-    print("No site time series URL found.")
-    site_time_series_df = pd.DataFrame()
 ```
 
 ```python exec
@@ -323,8 +311,8 @@ site_primary_data = primary_result_gdf[primary_result_gdf['site_id'] == site_id]
 > site_data_clean
 > ```
 
+
 ```python exec
-# Import and run narrative zoning analysis
 import sys
 sys.path.insert(0, str(Path.cwd()))
 from narrative_zoning import run_narrative_zoning
@@ -395,12 +383,91 @@ aoi_definitions =  {
     }
     }
 
-min_zone_length = 3  # Minimum length in km for a zone to be considered valid
-# Get areas of interest (AOIs) for the site
-aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions)
-aoi_zones = aois.get('zones', [])
-all_transects = aois.get('transects', [])
+
 ```
+
+```python exec
+numeric_data = site_primary_data.select_dtypes(include="number")
+summary = numeric_data.agg(["count", "mean", "min", "max", "std"]).transpose()
+summary = summary.round(3)
+```
+
+This dataset contains `len(site_primary_data)`{python exec} transects associated with the shoreline at site `site_primary_data['site_id'].iloc[0]`{python exec}. Each transect represents a segment of the coastline for which elevation and positional data have been analysed to estimate shoreline change trends and related metrics.
+
+The orientation of transects spans from `summary.loc["orientation", "min"]`{python exec}° to `summary.loc["orientation", "max"]`{python exec}°, with a mean orientation of `summary.loc["orientation", "mean"]`{python exec}°, indicating the general alignment of shoreline segments within this site.
+
+In terms of shoreline change:
+- The average **linear trend** across all transects is `summary.loc["trend", "mean"]`{python exec} m/year, with individual values ranging from `summary.loc["trend", "min"]`{python exec} to `summary.loc["trend", "max"]`{python exec}, suggesting a `("net erosional" if summary.loc["trend", "mean"] < 0 else "net accretional")`{python exec} trend overall.
+- The **Root Mean Square Error (RMSE)** of the trend model averages `summary.loc["rmse", "mean"]`{python exec} m, indicating the typical deviation between observed points and the fitted trend line.
+
+Confidence intervals on shoreline position trends are also available:
+- The mean **lower bound** is `summary.loc["cil", "mean"]`{python exec}, and the mean **upper bound** is `summary.loc["ciu", "mean"]`{python exec}, reflecting the uncertainty range around trend estimates.
+
+The number of valid data points per transect (`n_points_nonan`) ranges from `summary.loc["n_points_nonan", "min"]`{python exec} to `summary.loc["n_points_nonan", "max"]`{python exec}, with an average of `summary.loc["n_points_nonan", "mean"]`{python exec}.
+
+## Site Zone Analysis
+
+> [!info]+ Site Zone Configuration
+> ```python exec echo
+> min_zone_length = max(3, int(len(site_primary_data) / 10))  # Minimum of 3, or len(site_primary_data)//3
+> # Get areas of interest (AOIs) for the site
+> aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions)
+> aoi_zones = aois.get('zones', [])
+> all_transects = aois.get('transects', [])
+> ```
+
+This site has been divided in to **`len(aoi_zones)`{python exec}** zones consisting of at minimum **`min_zone_length`{python exec}** km of transect data each. 
+The minimum zone length required to constitute an area of interest is determined as a simple fraction of the total transect count.
+To increase or decrease the sensitivity of the zone definitions, you can adjust the `min_zone_length` parameter in the `run_narrative_zoning` function call above.
+Zone definitions are customisable, and extensible. They can be modified and extended by editing the `aoi_definitions` dictionary in the `run_narrative_zoning` function call above.
+Zone definitions applied to this site can be found in section `Area of Interest Definitions` at the bottom of this report.
+
+::: if "nzd" in site_id
+
+```python exec
+# If the site is a New Zealand site, we access its tidally corrected time series data
+time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-transecttimeseriestidallycorrected-2")
+site_time_series_entity = [
+    e for e in time_series_data_by_site
+    if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
+][0]  # Get the first match
+site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
+# Download and load the site time series CSV data
+if site_time_series_url:
+    try:
+        site_time_series_df = pd.read_csv(site_time_series_url)
+    except Exception as e:
+        print(f"Error loading site time series data: {e}")
+        site_time_series_df = pd.DataFrame()
+else:
+    print("No site time series URL found.")
+    site_time_series_df = pd.DataFrame()
+```
+
+::: elif "sar" not in site_id
+
+```python exec 
+# If the site is from the Pacific Rim, we access its time series data
+time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-timeseriestidallycorrected-1")
+site_time_series_entity = [
+    e for e in time_series_data_by_site
+    if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
+][0]  # Get the first match
+
+site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
+# Download and load the site time series CSV data
+if site_time_series_url:
+    try:
+        site_time_series_df = pd.read_csv(site_time_series_url)
+    except Exception as e:
+        print(f"Error loading site time series data: {e}")
+        site_time_series_df = pd.DataFrame()
+else:
+    print("No site time series URL found.")
+    site_time_series_df = pd.DataFrame()
+```
+
+::: 
 
 ::: if aoi_zones is not []
 
@@ -506,7 +573,574 @@ zone_transects = get_zone_transects(zone_metrics, all_transects) # Zone_transect
 This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metrics.transect_count`{python exec} transects, from `zone_metrics.start_transect_id`{python exec} to `zone_metrics.end_transect_id`{python exec}.
 `zone_metrics.narrative_description`{python exec}
 
-:::: table 
+::::: if "nzd" in site_id
+
+<!--- conditionals for plotly graphs --->
+:::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+```python exec
+# Create a time series plot for the zone transects
+if not site_time_series_df.empty and zone_transects:
+    site_time_series_df['dates'] = pd.to_datetime(site_time_series_df['dates'])
+    fig = go.Figure()
+    
+    # Get valid transects and calculate zone baseline
+    transect_ids = [t['id'] for t in zone_transects]
+    valid_transects = [(tid, site_time_series_df[['dates', tid]].dropna()) 
+                      for tid in transect_ids if tid in site_time_series_df.columns]
+    
+    if valid_transects:
+        # Calculate zone baseline and average time series
+        all_values = [val for _, data in valid_transects for val in data.iloc[:, 1].tolist()]
+        zone_baseline = np.mean(all_values)
+        
+        all_dates = sorted(set().union(*[data['dates'] for _, data in valid_transects]))
+        zone_data = []
+        for date in all_dates:
+            date_vals = [data[data['dates'] == date].iloc[0, 1] - zone_baseline 
+                        for _, data in valid_transects 
+                        if not data[data['dates'] == date].empty]
+            if date_vals:
+                zone_data.append((date, np.mean(date_vals)))
+        
+        zone_dates, zone_values = zip(*zone_data) if zone_data else ([], [])
+        
+        # Add individual transect lines
+        colors = px.colors.qualitative.Set1
+        for i, (tid, data) in enumerate(valid_transects):
+            fig.add_trace(go.Scatter(x=data['dates'], y=data.iloc[:, 1] - zone_baseline,
+                                   mode='lines', name=tid, opacity=0.6,
+                                   line=dict(color=colors[i % len(colors)], width=1),
+                                   hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'))
+        
+        # Add smoothed zone average
+        if len(zone_values) > 1:
+            zone_df = pd.DataFrame({'dates': zone_dates, 'values': zone_values}).sort_values('dates')
+            window = min(6, len(zone_df) // 4)
+            smoothed = zone_df['values'].rolling(window=window, center=True, min_periods=1).mean() if window >= 2 else zone_df['values']
+            
+            fig.add_trace(go.Scatter(x=zone_dates, y=smoothed, mode='lines+markers',
+                                   name='Zone Average (Smoothed)', line=dict(color='black', width=3),
+                                   marker=dict(size=4, color='black'),
+                                   hovertemplate='Zone Average: %{y:.1f}m<extra></extra>'))
+            
+            # Add trendline
+            if len(zone_dates) > 2:
+                dates_numeric = pd.to_numeric(pd.Series(zone_dates))
+                slope, intercept, *_ = stats.linregress(dates_numeric, zone_values)
+                annual_rate = slope * 365.25 * 24 * 3600 * 1000
+                fig.add_trace(go.Scatter(x=zone_dates, y=slope * dates_numeric + intercept,
+                                       mode='lines', name=f'Zone Trend ({annual_rate:.1f} m/yr)',
+                                       line=dict(color='red', width=2, dash='dash'),
+                                       hovertemplate='Trend: %{y:.1f}m<extra></extra>'))
+    
+        # Configure layout and view
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5,
+                      annotation_text="Zone Baseline", annotation_position="bottom right")
+        
+        fig.update_layout(
+            title=f'Shoreline Position Time Series - {zone_metrics.zone_type} Zone<br><sub>Relative to zone mean baseline</sub>',
+            xaxis_title='Date', yaxis_title='Cross-shore change [m]', hovermode='x unified',
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5, font=dict(size=9)),
+            width=800, height=400, margin=dict(l=50, r=20, t=60, b=80), font=dict(size=10))
+        
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
+        
+        # Set view range to prioritize recent data
+        if zone_dates:
+            end_date, start_date = pd.to_datetime(zone_dates[-1]), pd.to_datetime(zone_dates[0])
+            data_span = (end_date - start_date).days / 365.25
+            view_start = end_date - pd.DateOffset(years=20) if data_span > 20 else start_date - pd.DateOffset(years=1)
+            view_end = end_date + pd.DateOffset(years=1)
+            fig.update_xaxes(range=[view_start, view_end])
+        
+        fig.show()
+    else:
+        print("No time series data available or no transects in zone.")
+```
+
+:::::: elif zone_metrics.zone_type == "High Uncertainty"
+
+The figures below show the R² and RMSE metrics for the transects in this zone, which indicate high uncertainty in trend analysis.
+The R² score (top plot) measures the proportion of variance in the data explained by the model, with values closer to 1 indicating better fit.
+The sporadic nature of the R² values could be related to seasonal changes, data gaps, or other factors affecting the transects in this zone.
+The RMSE (bottom plot) quantifies the average deviation of observed values from the model predictions, with lower values indicating better accuracy.
+
+
+```python exec
+# Plot R² and RMSE for transects in this zone
+# ---------------------------------------------
+# 1. Compute R² and RMSE in rolling windows
+# ---------------------------------------------
+def compute_metrics_over_time(df, window_size=12):
+    df = df.dropna()
+    if len(df) < window_size:
+        return []
+
+    df = df.sort_values('dates')
+    df['ordinal'] = pd.to_datetime(df['dates']).map(pd.Timestamp.toordinal)
+    metrics = []
+
+    for i in range(len(df) - window_size + 1):
+        window = df.iloc[i:i+window_size]
+        X = window[['ordinal']]
+        y = window.iloc[:, 1]
+        model = LinearRegression().fit(X, y)
+        preds = model.predict(X)
+        r2 = r2_score(y, preds)
+        rmse = sqrt(mean_squared_error(y, preds))
+        center_date = window['dates'].iloc[window_size // 2]
+        metrics.append((center_date, r2, rmse))
+
+    return metrics
+
+# ---------------------------------------------
+# 2. Generate metrics across all transects
+# ---------------------------------------------
+metrics_data = []
+transect_ids = [t['id'] for t in zone_transects]
+
+for tid in transect_ids:
+    if tid not in site_time_series_df.columns:
+        continue
+    df = site_time_series_df[['dates', tid]].dropna()
+    for date, r2, rmse in compute_metrics_over_time(df, window_size=12):
+        metrics_data.append({
+            'transect_id': tid,
+            'date': date,
+            'r2': r2,
+            'rmse': rmse
+        })
+
+metrics_df = pd.DataFrame(metrics_data)
+
+# ---------------------------------------------
+# 3. Clean and group by monthly bins
+# ---------------------------------------------
+metrics_df['date'] = pd.to_datetime(metrics_df['date'], errors='coerce')
+metrics_df = metrics_df.dropna(subset=['date'])
+metrics_df = metrics_df[(metrics_df['date'] > '1985-01-01') & (metrics_df['date'] < '2025-01-01')]
+metrics_df['date_bin'] = metrics_df['date'].dt.to_period('M').dt.to_timestamp()
+
+agg_iqr = metrics_df.groupby('date_bin').agg(
+    r2_q1=('r2', lambda x: x.quantile(0.25)),
+    r2_q3=('r2', lambda x: x.quantile(0.75)),
+    r2_median=('r2', 'median'),
+    rmse_q1=('rmse', lambda x: x.quantile(0.25)),
+    rmse_q3=('rmse', lambda x: x.quantile(0.75)),
+    rmse_median=('rmse', 'median')
+).reset_index().rename(columns={'date_bin': 'date'})
+
+# ---------------------------------------------
+# 4. Compute RMSE trend line (linear regression)
+# ---------------------------------------------
+agg_iqr_clean = agg_iqr.dropna(subset=['rmse_median']).copy()
+agg_iqr_clean['ordinal'] = agg_iqr_clean['date'].map(pd.Timestamp.toordinal)
+
+X = agg_iqr_clean[['ordinal']]
+y = agg_iqr_clean['rmse_median']
+model = LinearRegression().fit(X, y)
+agg_iqr_clean['rmse_trend'] = model.predict(X)
+
+# ---------------------------------------------
+# 5. Create ghost lines for individual transects
+# ---------------------------------------------
+ghost_r2 = []
+ghost_rmse = []
+
+for tid in metrics_df['transect_id'].unique():
+    df = metrics_df[metrics_df['transect_id'] == tid].sort_values('date')
+    
+    ghost_r2.append(go.Scatter(
+        x=df['date'], y=df['r2'],
+        mode='lines',
+        line=dict(width=1, color='rgba(34,139,34,0.1)'),  # faint green
+        showlegend=False, hoverinfo='skip'
+    ))
+    
+    ghost_rmse.append(go.Scatter(
+        x=df['date'], y=df['rmse'],
+        mode='lines',
+        line=dict(width=1, color='rgba(255,140,0,0.1)'),  # faint orange
+        showlegend=False, hoverinfo='skip'
+    ))
+
+# ---------------------------------------------
+# 6. Create final plot with subplots
+# ---------------------------------------------
+fig = make_subplots(
+    rows=2, cols=1, shared_xaxes=True,
+    subplot_titles=('Median R² Score with IQR Band', 'Median RMSE with IQR Band')
+)
+
+for trace in ghost_r2:
+    fig.add_trace(trace, row=1, col=1)
+for trace in ghost_rmse:
+    fig.add_trace(trace, row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_median'],
+    mode='lines', name='R² Median',
+    line=dict(color='seagreen')
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_q3'],
+    mode='lines', line=dict(width=0), showlegend=False
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_q1'],
+    mode='lines', fill='tonexty',
+    fillcolor='rgba(46,139,87,0.3)',
+    line=dict(width=0), name='R² IQR'
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_median'],
+    mode='lines', name='RMSE Median',
+    line=dict(color='darkorange')
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_q3'],
+    mode='lines', line=dict(width=0), showlegend=False
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_q1'],
+    mode='lines', fill='tonexty',
+    fillcolor='rgba(255,165,0,0.3)',
+    line=dict(width=0), name='RMSE IQR'
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr_clean['date'], y=agg_iqr_clean['rmse_trend'],
+    mode='lines', name='RMSE Trend (Linear Fit)',
+    line=dict(color='black', dash='dash')
+), row=2, col=1)
+
+fig.update_layout(
+    height=600, width=900,
+    template='plotly_white',
+    hovermode='x unified',
+    legend=dict(
+        orientation="h",
+        yanchor="top",
+        y=-0.25,
+        xanchor="center",
+        x=0.5,
+        font=dict(size=10)
+    )
+)
+
+fig.update_yaxes(title_text='R² Score', range=[0, 1], row=1, col=1)
+fig.update_yaxes(title_text='RMSE (m)', row=2, col=1)
+fig.update_xaxes(title_text='Date', row=2, col=1)
+
+fig.show()
+```
+
+:::::: else 
+
+No analysis available for this zone type.
+
+::::::
+<!---- end of graphs ----->
+
+::::: elif "sar" in site_id
+
+Limitations of interface.crate modeling mean that SAR time serries data is not available for this site type.
+
+::::: else
+<!--- below is the conditional for the non-SAR, non-NZD sites -- i.e. pacific rim sites --->
+:::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+```python exec
+if not site_time_series_df.empty and zone_transects:
+    site_time_series_df['dates'] = pd.to_datetime(site_time_series_df['dates'])
+    fig = go.Figure()
+    
+    # Get valid transects and calculate zone baseline
+    transect_ids = [t['id'] for t in zone_transects]
+    valid_transects = [(tid, site_time_series_df[['dates', tid]].dropna()) 
+                      for tid in transect_ids if tid in site_time_series_df.columns]
+    
+    if valid_transects:
+        # Calculate zone baseline and average time series
+        all_values = [val for _, data in valid_transects for val in data.iloc[:, 1].tolist()]
+        zone_baseline = np.mean(all_values)
+        
+        all_dates = sorted(set().union(*[data['dates'] for _, data in valid_transects]))
+        zone_data = []
+        for date in all_dates:
+            date_vals = [data[data['dates'] == date].iloc[0, 1] - zone_baseline 
+                        for _, data in valid_transects 
+                        if not data[data['dates'] == date].empty]
+            if date_vals:
+                zone_data.append((date, np.mean(date_vals)))
+        
+        zone_dates, zone_values = zip(*zone_data) if zone_data else ([], [])
+        
+        # Add individual transect lines
+        colors = px.colors.qualitative.Set1
+        for i, (tid, data) in enumerate(valid_transects):
+            fig.add_trace(go.Scatter(x=data['dates'], y=data.iloc[:, 1] - zone_baseline,
+                                   mode='lines', name=tid, opacity=0.6,
+                                   line=dict(color=colors[i % len(colors)], width=1),
+                                   hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'))
+        
+        # Add smoothed zone average
+        if len(zone_values) > 1:
+            zone_df = pd.DataFrame({'dates': zone_dates, 'values': zone_values}).sort_values('dates')
+            window = min(6, len(zone_df) // 4)
+            smoothed = zone_df['values'].rolling(window=window, center=True, min_periods=1).mean() if window >= 2 else zone_df['values']
+            
+            fig.add_trace(go.Scatter(x=zone_dates, y=smoothed, mode='lines+markers',
+                                   name='Zone Average (Smoothed)', line=dict(color='black', width=3),
+                                   marker=dict(size=4, color='black'),
+                                   hovertemplate='Zone Average: %{y:.1f}m<extra></extra>'))
+            
+            # Add trendline
+            if len(zone_dates) > 2:
+                dates_numeric = pd.to_numeric(pd.Series(zone_dates))
+                slope, intercept, *_ = stats.linregress(dates_numeric, zone_values)
+                annual_rate = slope * 365.25 * 24 * 3600 * 1000
+                fig.add_trace(go.Scatter(x=zone_dates, y=slope * dates_numeric + intercept,
+                                       mode='lines', name=f'Zone Trend ({annual_rate:.1f} m/yr)',
+                                       line=dict(color='red', width=2, dash='dash'),
+                                       hovertemplate='Trend: %{y:.1f}m<extra></extra>'))
+    
+        # Configure layout and view
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5,
+                      annotation_text="Zone Baseline", annotation_position="bottom right")
+        
+        fig.update_layout(
+            title=f'Shoreline Position Time Series - {zone_metrics.zone_type} Zone<br><sub>Relative to zone mean baseline</sub>',
+            xaxis_title='Date', yaxis_title='Cross-shore change [m]', hovermode='x unified',
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5, font=dict(size=9)),
+            width=800, height=400, margin=dict(l=50, r=20, t=60, b=80), font=dict(size=10))
+        
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
+        
+        # Set view range to prioritize recent data
+        if zone_dates:
+            end_date, start_date = pd.to_datetime(zone_dates[-1]), pd.to_datetime(zone_dates[0])
+            data_span = (end_date - start_date).days / 365.25
+            view_start = end_date - pd.DateOffset(years=20) if data_span > 20 else start_date - pd.DateOffset(years=1)
+            view_end = end_date + pd.DateOffset(years=1)
+            fig.update_xaxes(range=[view_start, view_end])
+        
+        fig.show(config={
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToAdd': ['zoomIn2d', 'zoomOut2d', 'toggleSpikelines'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': 'shoreline_time_series',
+                'height': 600,
+                'width': 1000,
+                'scale': 2
+            }
+        })
+    else:
+        print("No time series data available or no transects in zone.")
+```
+
+:::::: elif zone_metrics.zone_type == "High Uncertainty"
+
+The figures below show the R² and RMSE metrics for the transects in this zone, which indicate high uncertainty in trend analysis.
+The R² score (top plot) measures the proportion of variance in the data explained by the model, with values closer to 1 indicating better fit.
+The sporadic nature of the R² values could be related to seasonal changes, data gaps, or other factors affecting the transects in this zone.
+The RMSE (bottom plot) quantifies the average deviation of observed values from the model predictions, with lower values indicating better accuracy.
+
+
+```python exec
+# Plot R² and RMSE for transects in this zone
+# ---------------------------------------------
+# 1. Compute R² and RMSE in rolling windows
+# ---------------------------------------------
+def compute_metrics_over_time(df, window_size=12):
+    df = df.dropna()
+    if len(df) < window_size:
+        return []
+
+    df = df.sort_values('dates')
+    df['ordinal'] = pd.to_datetime(df['dates']).map(pd.Timestamp.toordinal)
+    metrics = []
+
+    for i in range(len(df) - window_size + 1):
+        window = df.iloc[i:i+window_size]
+        X = window[['ordinal']]
+        y = window.iloc[:, 1]
+        model = LinearRegression().fit(X, y)
+        preds = model.predict(X)
+        r2 = r2_score(y, preds)
+        rmse = sqrt(mean_squared_error(y, preds))
+        center_date = window['dates'].iloc[window_size // 2]
+        metrics.append((center_date, r2, rmse))
+
+    return metrics
+
+# ---------------------------------------------
+# 2. Generate metrics across all transects
+# ---------------------------------------------
+metrics_data = []
+transect_ids = [t['id'] for t in zone_transects]
+
+for tid in transect_ids:
+    if tid not in site_time_series_df.columns:
+        continue
+    df = site_time_series_df[['dates', tid]].dropna()
+    for date, r2, rmse in compute_metrics_over_time(df, window_size=12):
+        metrics_data.append({
+            'transect_id': tid,
+            'date': date,
+            'r2': r2,
+            'rmse': rmse
+        })
+
+metrics_df = pd.DataFrame(metrics_data)
+
+# ---------------------------------------------
+# 3. Clean and group by monthly bins
+# ---------------------------------------------
+metrics_df['date'] = pd.to_datetime(metrics_df['date'], errors='coerce')
+metrics_df = metrics_df.dropna(subset=['date'])
+metrics_df = metrics_df[(metrics_df['date'] > '1985-01-01') & (metrics_df['date'] < '2025-01-01')]
+metrics_df['date_bin'] = metrics_df['date'].dt.to_period('M').dt.to_timestamp()
+
+agg_iqr = metrics_df.groupby('date_bin').agg(
+    r2_q1=('r2', lambda x: x.quantile(0.25)),
+    r2_q3=('r2', lambda x: x.quantile(0.75)),
+    r2_median=('r2', 'median'),
+    rmse_q1=('rmse', lambda x: x.quantile(0.25)),
+    rmse_q3=('rmse', lambda x: x.quantile(0.75)),
+    rmse_median=('rmse', 'median')
+).reset_index().rename(columns={'date_bin': 'date'})
+
+# ---------------------------------------------
+# 4. Compute RMSE trend line (linear regression)
+# ---------------------------------------------
+agg_iqr_clean = agg_iqr.dropna(subset=['rmse_median']).copy()
+agg_iqr_clean['ordinal'] = agg_iqr_clean['date'].map(pd.Timestamp.toordinal)
+
+X = agg_iqr_clean[['ordinal']]
+y = agg_iqr_clean['rmse_median']
+model = LinearRegression().fit(X, y)
+agg_iqr_clean['rmse_trend'] = model.predict(X)
+
+# ---------------------------------------------
+# 5. Create ghost lines for individual transects
+# ---------------------------------------------
+ghost_r2 = []
+ghost_rmse = []
+
+for tid in metrics_df['transect_id'].unique():
+    df = metrics_df[metrics_df['transect_id'] == tid].sort_values('date')
+    
+    ghost_r2.append(go.Scatter(
+        x=df['date'], y=df['r2'],
+        mode='lines',
+        line=dict(width=1, color='rgba(34,139,34,0.1)'),  # faint green
+        showlegend=False, hoverinfo='skip'
+    ))
+    
+    ghost_rmse.append(go.Scatter(
+        x=df['date'], y=df['rmse'],
+        mode='lines',
+        line=dict(width=1, color='rgba(255,140,0,0.1)'),  # faint orange
+        showlegend=False, hoverinfo='skip'
+    ))
+
+# ---------------------------------------------
+# 6. Create final plot with subplots
+# ---------------------------------------------
+fig = make_subplots(
+    rows=2, cols=1, shared_xaxes=True,
+    subplot_titles=('Median R² Score with IQR Band', 'Median RMSE with IQR Band')
+)
+
+for trace in ghost_r2:
+    fig.add_trace(trace, row=1, col=1)
+for trace in ghost_rmse:
+    fig.add_trace(trace, row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_median'],
+    mode='lines', name='R² Median',
+    line=dict(color='seagreen')
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_q3'],
+    mode='lines', line=dict(width=0), showlegend=False
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['r2_q1'],
+    mode='lines', fill='tonexty',
+    fillcolor='rgba(46,139,87,0.3)',
+    line=dict(width=0), name='R² IQR'
+), row=1, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_median'],
+    mode='lines', name='RMSE Median',
+    line=dict(color='darkorange')
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_q3'],
+    mode='lines', line=dict(width=0), showlegend=False
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr['date'], y=agg_iqr['rmse_q1'],
+    mode='lines', fill='tonexty',
+    fillcolor='rgba(255,165,0,0.3)',
+    line=dict(width=0), name='RMSE IQR'
+), row=2, col=1)
+
+fig.add_trace(go.Scatter(
+    x=agg_iqr_clean['date'], y=agg_iqr_clean['rmse_trend'],
+    mode='lines', name='RMSE Trend (Linear Fit)',
+    line=dict(color='black', dash='dash')
+), row=2, col=1)
+
+fig.update_layout(
+    height=600, width=900,
+    template='plotly_white',
+    hovermode='x unified',
+    legend=dict(
+        orientation="h",
+        yanchor="top",
+        y=-0.25,
+        xanchor="center",
+        x=0.5,
+        font=dict(size=10)
+    )
+)
+
+fig.update_yaxes(title_text='R² Score', range=[0, 1], row=1, col=1)
+fig.update_yaxes(title_text='RMSE (m)', row=2, col=1)
+fig.update_xaxes(title_text='Date', row=2, col=1)
+
+fig.show()
+```
+
+:::::: else
+
+No analysis available for this zone type.
+
+::::::
+
+:::::
+
+<!--- start of aoi tables --->
+::::: table 
 
 `zone_metrics.zone_name`{python exec} Zone Metrics
 
@@ -516,9 +1150,9 @@ This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metr
 | **Mean Trend**  | `zone_metrics.mean_trend`{python exec} m/year    |
 | **Beach Slope** | `zone_metrics.avg_beach_slope`{python exec}      |
 | **R² Score**    | `zone_metrics.r2_score`{python exec}             |
-::::
+:::::
 
-:::: table 
+::::: table 
 
 `zone_metrics.zone_name`{python exec} Zone Quality Metrics
 
@@ -529,193 +1163,53 @@ This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metr
 | **Confidence Interval** | [`zone_metrics.avg_cil`{python exec}, `zone_metrics.avg_ciu`{python exec}] |
 | **Orientation**   | `zone_metrics.avg_orientation`{python exec} °       |
 
-::::
-
-#### Transect Summaries
-
-::::: if "nzd" in site_id
-
-<!--- conditionals for plotly graphs --->
-:::::: if zone_metrics.zone_type == "Moderate Erosion" or zone_metrics.zone_type == "Rapid Erosion"
-
-```python exec
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime
-import numpy as np
-from scipy import stats
-
-# Create a time series plot for the zone transects
-if not site_time_series_df.empty and zone_transects:
-    # Convert dates column to datetime if it's not already
-    site_time_series_df['dates'] = pd.to_datetime(site_time_series_df['dates'])
-    
-    # Create the plotly figure
-    fig = go.Figure()
-    
-    # Get transect IDs from zone_transects
-    transect_ids = [transect['id'] for transect in zone_transects]
-    
-    # Colors for different transects (cycle through a color palette)
-    colors = px.colors.qualitative.Set1
-    
-    # Collect all data to calculate zone-wide average baseline
-    all_transect_data = []
-    all_dates = set()
-    
-    # First pass: collect all data and find common dates
-    valid_transects = []
-    for transect_id in transect_ids:
-        if transect_id in site_time_series_df.columns:
-            transect_data = site_time_series_df[['dates', transect_id]].dropna()
-            if not transect_data.empty:
-                valid_transects.append((transect_id, transect_data))
-                all_dates.update(transect_data['dates'])
-    
-    if valid_transects:
-        # Calculate zone-wide average baseline from all transects
-        all_values = []
-        for transect_id, transect_data in valid_transects:
-            all_values.extend(transect_data[transect_id].tolist())
-        zone_mean_baseline = np.mean(all_values)
-        
-        # Calculate zone average time series
-        all_dates_sorted = sorted(all_dates)
-        zone_avg_values = []
-        zone_dates = []
-        
-        for date in all_dates_sorted:
-            date_values = []
-            for transect_id, transect_data in valid_transects:
-                matching_rows = transect_data[transect_data['dates'] == date]
-                if not matching_rows.empty:
-                    # Adjust relative to zone baseline
-                    relative_val = matching_rows[transect_id].iloc[0] - zone_mean_baseline
-                    date_values.append(relative_val)
-            
-            # Include ALL dates, even if only one transect has data (removed the restriction)
-            if date_values:  # This will now include dates with any number of transects >= 1
-                zone_avg_values.append(np.mean(date_values))
-                zone_dates.append(date)
-        
-        # Add individual transect lines (lighter/thinner)
-        for i, (transect_id, transect_data) in enumerate(valid_transects):
-            relative_change = transect_data[transect_id] - zone_mean_baseline
-            
-            fig.add_trace(go.Scatter(
-                x=transect_data['dates'],
-                y=relative_change,
-                mode='lines',
-                name=f'{transect_id}',
-                line=dict(color=colors[i % len(colors)], width=1),
-                opacity=0.6,
-                hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'
-            ))
-        
-        # Add zone average line (prominent) with smoothing
-        if zone_dates and zone_avg_values:
-            # Apply rolling average smoothing to the zone average (6-month window)
-            zone_df = pd.DataFrame({'dates': zone_dates, 'values': zone_avg_values})
-            zone_df = zone_df.sort_values('dates')
-            
-            # Calculate rolling mean with a 6-month window (approximately 6 observations)
-            window_size = min(6, len(zone_df) // 4)  # Adaptive window size
-            if window_size >= 2:
-                zone_df['smoothed'] = zone_df['values'].rolling(window=window_size, center=True, min_periods=1).mean()
-                smoothed_values = zone_df['smoothed'].tolist()
-            else:
-                smoothed_values = zone_avg_values
-            
-            fig.add_trace(go.Scatter(
-                x=zone_dates,
-                y=smoothed_values,
-                mode='lines+markers',
-                name='Zone Average (Smoothed)',
-                line=dict(color='black', width=3),
-                marker=dict(size=4, color='black'),
-                hovertemplate='Zone Average: %{y:.1f}m<extra></extra>'
-            ))
-            
-            # Calculate and add single zone trendline
-            if len(zone_dates) > 2:
-                dates_numeric = pd.to_numeric(pd.Series(zone_dates))
-                slope, intercept, r_value, p_value, std_err = stats.linregress(dates_numeric, zone_avg_values)
-                
-                # Generate trendline
-                trend_y = slope * dates_numeric + intercept
-                annual_rate = slope * 365.25 * 24 * 3600 * 1000  # Convert to m/year
-                
-                fig.add_trace(go.Scatter(
-                    x=zone_dates,
-                    y=trend_y,
-                    mode='lines',
-                    name=f'Zone Trend ({annual_rate:.1f} m/yr)',
-                    line=dict(color='red', width=2, dash='dash'),
-                    hovertemplate='Trend: %{y:.1f}m<extra></extra>'
-                ))
-    
-    # Add baseline reference line at y=0
-    fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5,
-                  annotation_text="Zone Baseline", 
-                  annotation_position="bottom right")
-    
-    # Update layout with bottom legend
-    fig.update_layout(
-        title=f'Shoreline Position Time Series - {zone_metrics.zone_type} Zone<br><sub>Relative to zone mean baseline</sub>',
-        xaxis_title='Date',
-        yaxis_title='Cross-shore change [m]',
-        hovermode='x unified',
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.15,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=9)
-        ),
-        width=800,
-        height=400,
-        margin=dict(l=50, r=20, t=60, b=80),  # More bottom margin for legend
-        font=dict(size=10)
-    )
-    
-    # Add grid with light color and extend x-axis range for buffer
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
-    
-    # Ensure the latest data is always visible, prioritizing recent trends
-    if zone_dates and len(zone_dates) > 1:
-        end_date = pd.to_datetime(zone_dates[-1])   # Most recent date
-        start_date = pd.to_datetime(zone_dates[0])  # Earliest date
-        
-        # Calculate total data span
-        data_span_years = (end_date - start_date).days / 365.25
-        
-        # For long time series, show the most recent portion that fits well
-        if data_span_years > 20:
-            # Show last 20 years to ensure recent data is prominent
-            view_start = end_date - pd.DateOffset(years=20)
-            view_end = end_date + pd.DateOffset(years=1)
-        else:
-            # Show all data with small buffers
-            view_start = start_date - pd.DateOffset(years=1)
-            view_end = end_date + pd.DateOffset(years=1)
-        
-        fig.update_xaxes(range=[view_start, view_end])
-    
-    # Show the plot
-    fig.show()
-    
-    print(f"Plotted {len(valid_transects)} transects from the {zone_metrics.zone_type} zone.")
-    print(f"Zone baseline: {zone_mean_baseline:.1f}m (average of all transect means)")
-else:
-    print("No time series data available or no transects in zone.")
-```
-
-::::::
-<!--- end of plotly conditional --->
-
 :::::
+<!--- end of aoi tables --->
+
+> [!info]+ Transect Summary
+> ```python exec
+> rounding_map = {
+>     "orientation": ("°", 1),
+>     "along_dist": ("m", 1),
+>     "along_dist_norm": ("", 3),
+>     "beach_slope": ("", 2),
+>     "cil": ("", 3),
+>     "ciu": ("", 3),
+>     "trend": ("", 2),
+>     "r2_score": ("", 3),
+>     "mae": ("m", 1),
+>     "mse": ("m²", 1),
+>     "rmse": ("m", 1),
+>     "intercept": ("", 1)
+> }
+> property_keys = zone_transects[0]["properties"].keys()
+> datatable_columns = []
+> for key in property_keys:
+>     values = []
+>     for t in zone_transects:
+>         val = t["properties"].get(key)
+> 
+>         if val is None:
+>             values.append("–")
+>         elif key in rounding_map:
+>             unit, digits = rounding_map[key]
+>             try:
+>                 rounded = round(val, digits)
+>                 values.append(f"{rounded}{unit}" if unit else f"{rounded}")
+>             except Exception:
+>                 values.append(str(val))
+>         else:
+>             values.append(str(val))
+> 
+>     column = {
+>         "type": "DatatableColumn",
+>         "name": key,
+>         "values": values
+>     }
+>     datatable_columns.append(column)
+> 
+> dict(type="Datatable", columns=datatable_columns) # Present the datatable in the report
+> ```
 
 ::::
 
@@ -727,50 +1221,83 @@ No areas of interest (AOIs) were found for the site.
 
 ### Narrative Generation Configuration
 
-#### Area of Interest (AOI) Definitions
+#### Area of Interest Definitions
+
+
+The area of interest (AOI) definitions are used to categorise shoreline segments based on their trends and characteristics. 
+Each AOI has a priority, conditions for classification, and a description template for narrative generation.
+This report returns zones with, at minimum, `min_zone_length`{python exec} transects.  
+
 
 ```python exec
-# simple mapping of opperators to their string representations
+# Programmatically generate a table of AOI definitions
+def format_condition_sentence(cond):
+    field = cond.get("field", "-")
+    op = cond.get("operator", "-")
+    value = cond.get("value", None)
+    op_text = operator_to_english.get(op, op)
+
+    if value is None:
+        return f"If the `{field}` of the intersect is {op_text}."
+    else:
+        return f"If the `{field}` of the intersect is {op_text} {value}."
+
 operator_to_english = {
     "<": "less than",
-    "<=": "less than or equal to",
     ">": "greater than",
+    "<=": "less than or equal to",
     ">=": "greater than or equal to",
     "==": "equal to",
     "!=": "not equal to",
-    "is_null": "is null (missing)"
+    "is_null": "null",
+    "is_not_null": "not null"
 }
+
+names = []
+priorities = []
+conditions_descriptions = []
+
+for name, aoi in aoi_definitions.items():
+    names.append(name)
+    priorities.append(aoi.get("priority", "-"))
+
+    conds = aoi.get("conditions", [])
+    if conds:
+        sentences = [format_condition_sentence(c) for c in conds]
+        joined = " ".join(sentences)  # Or "\n" if you prefer line breaks
+        conditions_descriptions.append(joined)
+    else:
+        conditions_descriptions.append("–")
+
+# Create the Stencila Datatable
+datatable = {
+    "type": "Datatable",
+    "columns": [
+        {"type": "DatatableColumn", "name": "AOI Name", "values": names},
+        {"type": "DatatableColumn", "name": "Priority", "values": priorities},
+        {"type": "DatatableColumn", "name": "Conditions", "values": conditions_descriptions},
+    ]
+}
+
 ```
 
-The area of interest (AOI) definitions are used to categorize shoreline segments based on their trends and characteristics. 
-Each AOI has a priority, conditions for classification, and a description template for narrative generation.
-
-This template returns zones with, at minimum, `min_zone_length`{python exec} transects.  
-
-::: for aoi_def in aoi_definitions
-
-> [!info]+ Area of Interest
-> ### Title: **`aoi_def[0]`{python exec}**
-> #### Priority: **`aoi_def[1]['priority']`{python exec}**
-> 
-> :::: if aoi_def[1]['conditions'] 
-> 
-> Conditions:
-> 
-> ::::: for condition in aoi_def[1]['conditions']
->
-> :::::: if condition["value"] is not None
-> 
-> If the `condition['field']`{python exec} of the intersect is `operator_to_english[condition['operator']]`{python exec} than `condition['value']`{python exec}.
-> 
-> :::::: else 
->
-> If the `condition['field']`{python exec} of the intersect `operator_to_english[condition['operator']]`{python exec}.
->
-> ::::::
->
-> :::::
-> 
-> ::::
+```python exec
+dict(type="Datatable", columns=datatable["columns"])  # Present the datatable in the report
+```
 
 :::
+
+#### LivePublication Data
+
+```python exec
+interface_crate_version = interface_crate.mainEntity.get("url")
+coastsat_version = interface_crate.mainEntity.get("version")
+publication_crate_version = publication_crate.mainEntity.get("url")
+```
+
+This micropublication is part of the CoastSat project, which aims to monitor coastal change using satellite imagery.
+It is based on `dict(type="Link", target=interface_crate_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the _interface.crate_, and `dict(type="Link", target=coastsat_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the CoastSat GitHub repository.
+
+> [!tip]- Micropublication publication.crate
+> This publication.crate is available for download `dict(type="Link", target=publication_crate_version, content=[dict(type="Text", value=f"here")])`{python exec}.
+> It contains all data and resources required to reproduce the analysis and results presented in this micropublication.

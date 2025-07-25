@@ -260,5 +260,10 @@ def create_publication_crate(crate_dir="publication.crate"):
     if os.path.isdir("interface.crate"):
         shutil.rmtree("interface.crate")
 
+    # Clean up narrative_zoning script if it exists
+    narrative_script = Path("narrative_zoning.py")
+    if narrative_script.exists():
+        narrative_script.unlink()
+
 if __name__ == "__main__":
     create_publication_crate()
