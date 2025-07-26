@@ -18,6 +18,7 @@ import argparse
 import math
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
+import numpy as np
 
 try:
     import geopandas as gpd
@@ -354,22 +355,26 @@ def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: i
     """
     if not transects:
         return []
-    
+
+    # Precompute and store classification for each transect to avoid recomputation
+    for transect in transects:
+        transect['zone_classification'] = classify_transect_zone(transect, zone_definitions)
+
     zones = []
     current_zone_type = None
     current_zone_start = 0
     current_zone_transects = []
     zone_counter = 1  # Start counting from 1
-    
+
     for i, transect in enumerate(transects):
-        zone_type = classify_transect_zone(transect, zone_definitions)
-        
+        zone_type = transect['zone_classification']
+
         if zone_type != current_zone_type:
             # End current zone if it meets minimum length
             if current_zone_type is not None and len(current_zone_transects) >= min_zone_length:
                 zones.append(create_zone_summary(current_zone_type, current_zone_transects, current_zone_start, zone_definitions, zone_counter))
                 zone_counter += 1
-            
+
             # Start new zone
             current_zone_type = zone_type
             current_zone_start = i
@@ -377,11 +382,11 @@ def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: i
         else:
             # Continue current zone
             current_zone_transects.append(transect)
-    
+
     # Don't forget the last zone
     if current_zone_type is not None and len(current_zone_transects) >= min_zone_length:
         zones.append(create_zone_summary(current_zone_type, current_zone_transects, current_zone_start, zone_definitions, zone_counter))
-    
+
     return zones
 
 
@@ -390,21 +395,20 @@ def create_zone_summary(zone_type: str, transects: List[Dict[str, Any]], start_i
     if not transects:
         return {}
     
-    # Calculate zone statistics from transect properties
-    trends = [t['properties']['trend'] for t in transects if t['properties']['trend'] is not None]
-    slopes = [t['properties']['beach_slope'] for t in transects if t['properties']['beach_slope'] is not None]
-    r2s = [t['properties']['r2_score'] for t in transects if t['properties']['r2_score'] is not None]
-    
-    # New aggregate metrics
-    rmses = [t['properties']['rmse'] for t in transects if t['properties'].get('rmse') is not None]
-    maes = [t['properties']['mae'] for t in transects if t['properties'].get('mae') is not None]
-    cils = [t['properties']['cil'] for t in transects if t['properties'].get('cil') is not None]
-    cius = [t['properties']['ciu'] for t in transects if t['properties'].get('ciu') is not None]
-    orientations = [t['properties']['orientation'] for t in transects if t['properties'].get('orientation') is not None]
-    
+    # Calculate zone statistics from transect properties using numpy for aggregates
+    trends = np.array([t['properties']['trend'] for t in transects if t['properties']['trend'] is not None])
+    slopes = np.array([t['properties']['beach_slope'] for t in transects if t['properties']['beach_slope'] is not None])
+    r2s = np.array([t['properties']['r2_score'] for t in transects if t['properties']['r2_score'] is not None])
+
+    rmses = np.array([t['properties']['rmse'] for t in transects if t['properties'].get('rmse') is not None])
+    maes = np.array([t['properties']['mae'] for t in transects if t['properties'].get('mae') is not None])
+    cils = np.array([t['properties']['cil'] for t in transects if t['properties'].get('cil') is not None])
+    cius = np.array([t['properties']['ciu'] for t in transects if t['properties'].get('ciu') is not None])
+    orientations = np.array([t['properties']['orientation'] for t in transects if t['properties'].get('orientation') is not None])
+
     start_dist = transects[0]['properties']['along_dist']
     end_dist = transects[-1]['properties']['along_dist']
-    
+
     zone_summary = {
         'zone_type': zone_type,
         'transect_count': len(transects),
@@ -415,23 +419,23 @@ def create_zone_summary(zone_type: str, transects: List[Dict[str, Any]], start_i
         'length_meters': abs(end_dist - start_dist),
         'start_transect_id': transects[0]['properties']['id'],
         'end_transect_id': transects[-1]['properties']['id'],
-        
+
         # Renamed fields
-        'mean_trend': sum(trends) / len(trends) if trends else None,
-        'avg_beach_slope': sum(slopes) / len(slopes) if slopes else None,
-        
+        'mean_trend': trends.mean() if trends.size > 0 else None,
+        'avg_beach_slope': slopes.mean() if slopes.size > 0 else None,
+
         # Existing fields
-        'avg_r2': sum(r2s) / len(r2s) if r2s else None,
-        'max_trend': max(trends) if trends else None,
-        'min_trend': min(trends) if trends else None,
-        
+        'avg_r2': r2s.mean() if r2s.size > 0 else None,
+        'max_trend': trends.max() if trends.size > 0 else None,
+        'min_trend': trends.min() if trends.size > 0 else None,
+
         # New aggregate metrics
-        'avg_rmse': sum(rmses) / len(rmses) if rmses else None,
-        'avg_mae': sum(maes) / len(maes) if maes else None,
-        'avg_cil': sum(cils) / len(cils) if cils else None,
-        'avg_ciu': sum(cius) / len(cius) if cius else None,
-        'avg_orientation': sum(orientations) / len(orientations) if orientations else None,
-        
+        'avg_rmse': rmses.mean() if rmses.size > 0 else None,
+        'avg_mae': maes.mean() if maes.size > 0 else None,
+        'avg_cil': cils.mean() if cils.size > 0 else None,
+        'avg_ciu': cius.mean() if cius.size > 0 else None,
+        'avg_orientation': orientations.mean() if orientations.size > 0 else None,
+
         'transect_ids': [t['properties']['id'] for t in transects]
     }
     
@@ -502,17 +506,17 @@ def create_transect_dict(transects: List[Dict[str, Any]], zone_definitions: Opti
         Dictionary mapping transect IDs to transect data with zone classification
     """
     transect_dict = {}
-    
+
     for transect in transects:
         transect_id = transect['properties']['id']
-        zone_type = classify_transect_zone(transect, zone_definitions)
-        
+        zone_type = transect.get('zone_classification') or classify_transect_zone(transect, zone_definitions)
+
         transect_dict[transect_id] = {
             'properties': transect['properties'],
             'geometry': transect['geometry'],
             'zone_classification': zone_type
         }
-    
+
     return transect_dict
 
 
