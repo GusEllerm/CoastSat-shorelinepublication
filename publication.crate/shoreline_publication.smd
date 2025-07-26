@@ -718,11 +718,19 @@ The number of valid data points per transect (`n_points_nonan`) ranges from `sum
 > all_transects = aois.get('transects', [])
 > ```
 
-This site has been divided in to **`len(aoi_zones)`{python exec}** zones consisting of at minimum **`min_zone_length`{python exec}** km of transect data each. 
-The minimum zone length required to constitute an area of interest is determined as a simple fraction of the total transect count.
-To increase or decrease the sensitivity of the zone definitions, you can adjust the `min_zone_length` parameter in the `run_narrative_zoning` function call above.
-Zone definitions are customisable, and extensible. They can be modified and extended by editing the `aoi_definitions` dictionary in the `run_narrative_zoning` function call above.
+::: if len(aoi_zones) == 0
+
+No areas of interest (AOIs) were identified for this site.
+This may be due to the `min_zone_length` (`min_zone_length`{python exec}) parameter being set too high, or the transect data not meeting the criteria for any defined zones.
+
+::: else
+
+This site has been divided in to **`len(aoi_zones)`{python exec}** zones consisting of at minimum **`min_zone_length`{python exec}** transects each. 
+To increase or decrease the sensitivity of the zone definitions (i.e. the number of transects required to define a zone), you can adjust the `min_zone_length` parameter in the `run_narrative_zoning` function call above.
+Zone definitions are customisable, and extensible, and can be modified and extended by editing the `aoi_definitions` dictionary in the `run_narrative_zoning` function call above.
 Zone definitions applied to this site can be found in section `Area of Interest Definitions` at the bottom of this report.
+
+:::
 
 <!--- The following conditional blocks pre-process the timeseries data for different site types --->
 ::: if "nzd" in site_id
