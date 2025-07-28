@@ -12,8 +12,6 @@ table {
 th, td {
     border: 1px solid #ddd;
     padding: 6px 10px !important;
-    text-align: left;
-    vertical-align: middle;
 }
 
 th {
@@ -817,6 +815,11 @@ def extract_zone_metrics(zone):
 zone_metrics = extract_zone_metrics(zone)
 ```
 
+### Zone: `zone_metrics.zone_type`{python exec}
+
+This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metrics.transect_count`{python exec} transects, from `zone_metrics.start_transect_id`{python exec} to `zone_metrics.end_transect_id`{python exec}.
+`zone_metrics.narrative_description`{python exec}
+
 ```python exec 
 # Create Maps which visualise the sub-set of transects in this zone
 def get_zone_transects(zone_metrics, all_transects):
@@ -828,59 +831,93 @@ def get_zone_transects(zone_metrics, all_transects):
             t_copy["id"] = tid
             results.append(t_copy)
     return results
+
 def build_transect_gdf(transects):
     features = []
     for t in transects:
         coords = t["geometry"]["coordinates"]
         line = LineString(coords)
-        features.append({
-            "id": t["id"],
-            "site_id": t.get("site_id"),
-            "geometry": line
-        })
+        # Copy all properties from t["properties"], plus id and site_id at top level
+        props = dict(t.get("properties", {}))
+        props["id"] = t["id"]
+        props["site_id"] = t.get("site_id")
+        props["geometry"] = line
+        features.append(props)
     return gpd.GeoDataFrame(features, crs="EPSG:4326")
 
-def save_zone_transect_map(zone_metrics, all_transects, out_path):
-    zone_transects = get_zone_transects(zone_metrics, all_transects)
-    gdf = build_transect_gdf(zone_transects)
-    ax = gdf.plot(figsize=(6, 6), linewidth=2)
-    cx.add_basemap(ax, crs="EPSG:4326")
-    ax.set_title(f"Zone: {zone_metrics.zone_type}")
-    ax.set_axis_off()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close()
+def create_folium_map(gdf):
 
-def save_interactive_transect_map(gdf, filename="zone_transects_map.html"):
-    center = gdf.geometry.unary_union.centroid.coords[0][::-1]  # (lat, lon)
-    m = folium.Map(location=center, zoom_start=12, tiles="OpenStreetMap")
+    # Calculate bounds: [minx, miny, maxx, maxy]
+    bounds = gdf.total_bounds
+    # Center for initial map creation (lat, lon)
+    center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]
+
+    # Use only the Stamen Terrain base map
+    m = folium.Map(location=center, zoom_start=15, tiles="OpenStreetMap")
+
+
+    rounding_map = {
+        "orientation": ("°", 1),
+        "along_dist": ("m", 1),
+        "along_dist_norm": ("", 3),
+        "beach_slope": ("", 2),
+        "cil": ("", 3),
+        "ciu": ("", 3),
+        "trend": ("", 2),
+        "r2_score": ("", 3),
+        "mae": ("m", 1),
+        "mse": ("m²", 1),
+        "rmse": ("m", 1),
+        "intercept": ("", 1)
+    }
+
+    # Build tooltip fields and aliases from zone_transects[0]["properties"] (exclude id and site_id)
+    # Use the same rounding_map as in the Transect Summary
+    # Always include 'id' (transect ID) as the first field
+    tooltip_fields = ["id"]
+    tooltip_aliases = ["Transect ID:"]
+    prop_keys = [k for k in zone_transects[0]["properties"].keys() if k not in ("geometry", "id", "site_id")]
+    for key in prop_keys:
+        tooltip_fields.append(key)
+        # Make a nice alias (capitalize, replace _ with space, add units if in rounding_map)
+        alias = key.replace("_", " ").capitalize()
+        if key in rounding_map:
+            unit, _ = rounding_map[key]
+            if unit:
+                alias += f" ({unit})"
+        tooltip_aliases.append(alias + ":")
 
     folium.GeoJson(
         gdf.to_json(),
         name="Transects",
-        tooltip=folium.GeoJsonTooltip(fields=["id", "site_id"])
+        tooltip=folium.GeoJsonTooltip(fields=tooltip_fields, aliases=tooltip_aliases, sticky=True, localize=True)
     ).add_to(m)
 
-    map_path = os.path.join(dir, "zone_transects_map.html")
-    m.save(map_path)
-    return map_path
 
-# TODO: Map stuff is waiting for integration 
-zone_transects = get_zone_transects(zone_metrics, all_transects) # Zone_transects are used for more than just the map, so we keep them
-# transect_gdf = build_transect_gdf(zone_transects)
-# map_path = save_interactive_transect_map(transect_gdf)
+
+    # Fit map to bounds so all transects are visible
+    m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
+
+    # Add Title
+    map_title = zone_metrics.zone_name
+    # Make the title less dominant: smaller font, lighter color, normal weight
+    title_html = f'<h2 style="position:absolute;z-index:100000;left:40vw;top:10px;font-size:1.2em;font-weight:400;color:#444;background:rgba(255,255,255,0.7);padding:4px 12px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">{map_title}</h2>'
+    m.get_root().html.add_child(folium.Element(title_html))
+
+    return m
+
+zone_transects = get_zone_transects(zone_metrics, all_transects) 
+transect_gdf = build_transect_gdf(zone_transects)
+m = create_folium_map(transect_gdf)
+m
 ```
-
-<!--- ::: include zone_transects_map.html currently not working in Stencila --->
-
-### Zone: `zone_metrics.zone_type`{python exec}
-
-This zone spans `zone_metrics.length_km`{python exec} km and contains `zone_metrics.transect_count`{python exec} transects, from `zone_metrics.start_transect_id`{python exec} to `zone_metrics.end_transect_id`{python exec}.
-`zone_metrics.narrative_description`{python exec}
 
 ::::: if "nzd" in site_id
 
 <!--- conditionals for plotly graphs --->
 :::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+The figures below show the time series of shoreline position for the transects in this zone.
 
 ```python exec
 # Plot the transect time series for this zone
@@ -913,6 +950,8 @@ Limitations of interface.crate modeling mean that SAR time serries data is not a
 ::::: else
 <!--- below is the conditional for the non-SAR, non-NZD sites -- i.e. pacific rim sites --->
 :::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+The figures below show the time series of shoreline position for the transects in this zone.
 
 ```python exec
 # Plot the transect time series for this zone
