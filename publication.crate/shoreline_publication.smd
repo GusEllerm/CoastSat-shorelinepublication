@@ -872,14 +872,11 @@ def create_folium_map(gdf):
     }
 
     # Build tooltip fields and aliases from zone_transects[0]["properties"] (exclude id and site_id)
-    # Use the same rounding_map as in the Transect Summary
-    # Always include 'id' (transect ID) as the first field
     tooltip_fields = ["id"]
     tooltip_aliases = ["Transect ID:"]
     prop_keys = [k for k in zone_transects[0]["properties"].keys() if k not in ("geometry", "id", "site_id")]
     for key in prop_keys:
         tooltip_fields.append(key)
-        # Make a nice alias (capitalize, replace _ with space, add units if in rounding_map)
         alias = key.replace("_", " ").capitalize()
         if key in rounding_map:
             unit, _ = rounding_map[key]
@@ -893,14 +890,9 @@ def create_folium_map(gdf):
         tooltip=folium.GeoJsonTooltip(fields=tooltip_fields, aliases=tooltip_aliases, sticky=True, localize=True)
     ).add_to(m)
 
-
-
     # Fit map to bounds so all transects are visible
     m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
-
-    # Add Title
     map_title = zone_metrics.zone_name
-    # Make the title less dominant: smaller font, lighter color, normal weight
     title_html = f'<h2 style="position:absolute;z-index:100000;left:40vw;top:10px;font-size:1.2em;font-weight:400;color:#444;background:rgba(255,255,255,0.7);padding:4px 12px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">{map_title}</h2>'
     m.get_root().html.add_child(folium.Element(title_html))
 
@@ -917,7 +909,7 @@ m
 <!--- conditionals for plotly graphs --->
 :::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
 
-The figures below show the time series of shoreline position for the transects in this zone.
+The figure below show the time series of shoreline position for the transects in this zone.
 
 ```python exec
 # Plot the transect time series for this zone
@@ -951,7 +943,7 @@ Limitations of interface.crate modeling mean that SAR time serries data is not a
 <!--- below is the conditional for the non-SAR, non-NZD sites -- i.e. pacific rim sites --->
 :::::: if (zone_metrics.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
 
-The figures below show the time series of shoreline position for the transects in this zone.
+The figure below show the time series of shoreline position for the transects in this zone.
 
 ```python exec
 # Plot the transect time series for this zone
