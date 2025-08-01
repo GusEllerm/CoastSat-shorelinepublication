@@ -109,10 +109,12 @@ tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250
 
 **Features:**
 - ✅ **Side-by-side comparison** in a split-screen web interface
-- ✅ **Synchronized scrolling** - both publications scroll together
+- ✅ **Same-speed synchronized scrolling** - documents scroll at the same rate (pixels), not normalized positioning
 - ✅ **Interactive controls** - toggle sync, reset view, open originals
 - ✅ **File size comparison** in generated report
 - ✅ **Automatic cleanup** of temporary files
+- ✅ **HTTP server** - avoids browser security restrictions with local file serving
+- ✅ **Port management** - automatically handles port conflicts from previous sessions
 
 ### Create GitHub Release
 
@@ -174,6 +176,23 @@ print(f"Analysis for site: {site_id}")
 - **RO-Crate Standard**: Metadata and data provenance using ROCrate Python library
 - **Dual Execution**: Works both as development tool and webservice component
 - **GitHub Integration**: Automated release creation with embedded URLs
+
+### Publication Comparison System
+
+The comparison tool (`tests/test_publication_compare.sh`) provides advanced publication analysis:
+
+- **Same-Speed Scrolling**: Documents scroll at identical pixel rates, preserving natural document lengths
+- **Cross-Origin Security**: Built-in HTTP server (port 8000+) bypasses browser file:// restrictions  
+- **Port Conflict Resolution**: Automatic detection and cleanup of existing servers using `lsof`
+- **Debounced Synchronization**: Smooth 60fps scroll sync with conflict prevention
+- **Responsive Interface**: Split-screen design with fixed headers and interactive controls
+- **Comprehensive Reporting**: File size analysis and technical metadata in generated reports
+
+**Technical Notes:**
+- Uses percentage-free absolute pixel positioning for natural scroll behavior
+- Implements graceful fallbacks when iframe access is restricted by browser security
+- Supports documents of different lengths without forced normalization
+- Automatic server lifecycle management with background process detection
 
 ## 🌐 Webservice Integration  
 
