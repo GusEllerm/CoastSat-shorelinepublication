@@ -21,6 +21,7 @@ CoastSat-shorelinepublication/
 ├── tests/                       # Testing infrastructure
 │   ├── test_publication_enhanced.sh  # Comprehensive testing
 │   ├── test_publication_creation.sh  # Release workflow testing
+│   ├── test_publication_compare.sh   # Version comparison testing
 │   └── README.md               # Testing documentation
 │
 ├── docs/                        # Documentation
@@ -48,6 +49,9 @@ tests/test_publication_enhanced.sh aus0001
 
 # Release workflow testing
 tests/test_publication_creation.sh
+
+# Compare different interface.crate versions
+tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250725024714
 ```
 
 ### Advanced Options
@@ -84,6 +88,31 @@ python src/crate_builder.py --help
 # List available interface.crate releases
 curl -s "https://api.github.com/repos/GusEllerm/CoastSat-interface.crate/releases" | grep '"tag_name"' | head -10
 ```
+
+#### Publication Version Comparison
+
+Compare publications generated with different interface.crate versions side-by-side:
+
+```bash
+# Compare latest vs specific version
+tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250725024714
+
+# Compare two specific versions
+tests/test_publication_compare.sh nzd0001 interface.crate-cb67e8e26-20250801011405 interface.crate-d61c2052a-20250725024714
+
+# Generate comparison without auto-opening
+tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250725024714 --no-open
+
+# Use custom output directory
+tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250725024714 --output-dir my_comparison
+```
+
+**Features:**
+- ✅ **Side-by-side comparison** in a split-screen web interface
+- ✅ **Synchronized scrolling** - both publications scroll together
+- ✅ **Interactive controls** - toggle sync, reset view, open originals
+- ✅ **File size comparison** in generated report
+- ✅ **Automatic cleanup** of temporary files
 
 ### Create GitHub Release
 

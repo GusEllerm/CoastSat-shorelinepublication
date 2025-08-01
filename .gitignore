@@ -155,6 +155,7 @@ outputs/
 results/
 temp/
 temporary/
+comparison_output/
 
 # Config files with sensitive information
 config.ini
