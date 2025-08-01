@@ -199,10 +199,9 @@ def evaluate_shorelinepublication(temp_dir_path):
 
     print(f"Template file: {template}")
     
-    # Debug: Show template content
+    # Read template content
     with open(template, 'r') as f:
         content = f.read()
-    print(f"Template content: '{content}'")
 
     data_json = temp_dir_path / "data.json"
     if not data_json.exists():

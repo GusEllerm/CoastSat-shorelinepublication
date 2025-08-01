@@ -844,8 +844,6 @@ aoi_definitions =  {
         "description_template": "Stable shoreline segment showing minimal change over time. This area exhibits natural equilibrium."
     }
     }
-
-
 ```
 
 ```python exec

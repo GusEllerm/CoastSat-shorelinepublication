@@ -7,7 +7,7 @@
             "creator": {
                 "@id": "#creator"
             },
-            "datePublished": "2025-07-28T20:52:42+00:00",
+            "datePublished": "2025-08-01T01:15:26+00:00",
             "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
             "hasPart": [
                 {
@@ -56,7 +56,7 @@
             "description": "The unresolved dynamic narrative document serving as input to the DNF Engine.",
             "encodingFormat": "application/smd",
             "name": "DNF Document File",
-            "sha256": "e90d14a34f9aa7cb356f9c4239d08f8617f82079b7bd1b177dbb5f4ae4996e0a"
+            "sha256": "79320da4c3fc498bfb3853ad2dd5cb48a6d570213085ebdce3c15486276cae8e"
         },
         {
             "@id": "#stencila",
@@ -154,7 +154,7 @@
             "description": "Python logic for generating publications from the DNF document.",
             "encodingFormat": "text/x-python",
             "name": "Publication Logic",
-            "sha256": "ab16aa718bd0ef2368383cf083aa91d44c8c45ebc3b0270cf556723dba4e09c5"
+            "sha256": "8a232143933cb5fcf5c28e765bf723c7961dada318e4d03d81a4d69ccb427c3b"
         },
         {
             "@id": "narrative_zoning.py",
