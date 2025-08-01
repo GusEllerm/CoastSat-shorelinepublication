@@ -50,6 +50,41 @@ tests/test_publication_enhanced.sh aus0001
 tests/test_publication_creation.sh
 ```
 
+### Advanced Options
+
+#### Custom Interface.crate Version
+
+By default, the system downloads the latest interface.crate release. You can specify a specific version using the `--interface-crate` option:
+
+```bash
+# Use a specific interface.crate version
+tests/test_publication_enhanced.sh aus0001 -i_crate interface.crate-cb67e8e26-20250801011405
+
+# Use second-to-latest version
+tests/test_publication_enhanced.sh aus0001 -i_crate interface.crate-d61c2052a-20250725024714
+
+# Explicitly use latest (default behavior)
+tests/test_publication_enhanced.sh aus0001 -i_crate latest
+
+# Combine with other options
+tests/test_publication_enhanced.sh aus0001 --no-open -i_crate interface.crate-d61c2052a-20250725024714
+```
+
+**Direct crate_builder.py usage:**
+```bash
+# Use custom interface.crate version directly
+python src/crate_builder.py --interface-crate interface.crate-cb67e8e26-20250801011405
+
+# Show available options
+python src/crate_builder.py --help
+```
+
+**Finding Available Versions:**
+```bash
+# List available interface.crate releases
+curl -s "https://api.github.com/repos/GusEllerm/CoastSat-interface.crate/releases" | grep '"tag_name"' | head -10
+```
+
 ### Create GitHub Release
 
 ```bash
@@ -70,9 +105,10 @@ Main publication generation logic with dual execution modes:
 
 RO-Crate generation system that:
 
-- Downloads latest interface.crate from GitHub releases
+- Downloads interface.crate from GitHub releases (latest or specific version)
 - Copies templates and logic files from `src/`
 - Generates complete publication.crate with metadata
+- Supports version pinning with `--interface-crate` option
 
 ### **`src/templates/shoreline_publication.smd`**
 

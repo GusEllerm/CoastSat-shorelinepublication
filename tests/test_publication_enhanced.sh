@@ -5,6 +5,7 @@ set -e  # Exit on any error
 # Parse arguments
 AUTO_OPEN=true
 CUSTOM_SITE_ID=""
+CUSTOM_INTERFACE_CRATE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -12,11 +13,17 @@ while [[ $# -gt 0 ]]; do
             AUTO_OPEN=false
             shift
             ;;
+        -i_crate|--interface-crate)
+            CUSTOM_INTERFACE_CRATE="$2"
+            shift 2
+            ;;
         -h|--help)
-            echo "Usage: $0 [SITE_ID] [--no-open] [--help]"
-            echo "  SITE_ID    Custom site ID (default: test_site_TIMESTAMP)"
-            echo "  --no-open  Don't automatically open the HTML file"
-            echo "  --help     Show this help message"
+            echo "Usage: $0 [SITE_ID] [--no-open] [-i_crate VERSION] [--help]"
+            echo "  SITE_ID              Custom site ID (default: test_site_TIMESTAMP)"
+            echo "  --no-open            Don't automatically open the HTML file"
+            echo "  -i_crate VERSION     Use specific interface.crate release version (default: latest)"
+            echo "                       Examples: v1.0.0, v2.1.3, latest"
+            echo "  --help               Show this help message"
             exit 0
             ;;
         *)
@@ -35,6 +42,12 @@ else
     echo "📝 Using provided site ID: $CUSTOM_SITE_ID"
 fi
 
+if [ -z "$CUSTOM_INTERFACE_CRATE" ]; then
+    echo "📦 Using latest interface.crate release"
+else
+    echo "📦 Using interface.crate version: $CUSTOM_INTERFACE_CRATE"
+fi
+
 echo "🧹 Cleaning up old publication.crate..."
 if [ -d "publication.crate" ]; then
     rm -rf publication.crate/
@@ -44,11 +57,20 @@ else
 fi
 
 # Run crate_builder.py with timeout to avoid hanging indefinitely
-timeout 300 python src/crate_builder.py || {
-    echo "❌ src/crate_builder.py timed out or failed"
-    echo "💡 This might be due to network issues or GitHub API limits"
-    exit 1
-}
+if [ -n "$CUSTOM_INTERFACE_CRATE" ]; then
+    echo "🔧 Using custom interface.crate version: $CUSTOM_INTERFACE_CRATE"
+    timeout 300 python src/crate_builder.py --interface-crate "$CUSTOM_INTERFACE_CRATE" || {
+        echo "❌ src/crate_builder.py timed out or failed"
+        echo "💡 This might be due to network issues or GitHub API limits"
+        exit 1
+    }
+else
+    timeout 300 python src/crate_builder.py || {
+        echo "❌ src/crate_builder.py timed out or failed"
+        echo "💡 This might be due to network issues or GitHub API limits"
+        exit 1
+    }
+fi
 
 if [ $? -eq 0 ]; then
     echo "✅ publication.crate/ regenerated successfully"

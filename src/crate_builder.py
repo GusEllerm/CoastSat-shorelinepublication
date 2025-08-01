@@ -4,7 +4,7 @@ from rocrate.rocrate import ROCrate, ContextEntity, Dataset
 from rocrate.model.person import Person
 from pathlib import Path
 import shutil
-
+import argparse
 import subprocess
 import requests
 import zipfile
@@ -109,12 +109,18 @@ def add_dnf_doc(crate):
     })
     return dnf_file
 
-def add_dnf_deps(crate):
+def add_dnf_deps(crate, interface_crate_version="latest"):
     repo_owner = "GusEllerm"
     repo_name = "CoastSat-interface.crate"
     download_dir = "publication.crate"
 
-    api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    # Determine API URL based on version
+    if interface_crate_version == "latest":
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        print("📦 Fetching latest interface.crate release...")
+    else:
+        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{interface_crate_version}"
+        print(f"📦 Fetching interface.crate release: {interface_crate_version}...")
 
     token_path = Path("token.txt")
     token = token_path.read_text().strip() if token_path.exists() else None
@@ -125,8 +131,6 @@ def add_dnf_deps(crate):
     }
     if token:
         headers["Authorization"] = f"token {token}"
-
-    print("📦 Fetching latest interface.crate release...")
     
     try:
         response = requests.get(api_url, headers=headers)
@@ -135,7 +139,10 @@ def add_dnf_deps(crate):
 
         asset = next((a for a in release["assets"] if a["name"].endswith(".zip")), None)
         if not asset:
-            raise Exception("No zip asset found in the latest release.")
+            if interface_crate_version == "latest":
+                raise Exception("No zip asset found in the latest release.")
+            else:
+                raise Exception(f"No zip asset found in release {interface_crate_version}. Please check that the version exists and has a zip asset.")
 
         print(f"⬇️ Downloading: {asset['name']}")
         zip_response = requests.get(asset["browser_download_url"], headers=headers)
@@ -144,8 +151,19 @@ def add_dnf_deps(crate):
         with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
             z.extractall(download_dir)  # Extracts to current working directory  print(f"✅ Extracted to {download_dir}")
 
+    except requests.exceptions.HTTPError as e:
+        if hasattr(e, 'response') and e.response.status_code == 404:
+            if interface_crate_version == "latest":
+                raise Exception("Latest release not found. The repository may not have any releases.")
+            else:
+                raise Exception(f"Release {interface_crate_version} not found. Please check that the version exists.")
+        else:
+            raise Exception(f"HTTP error occurred: {e}")
     except Exception as e:
-        raise Exception(f"Failed to download and extract interface.crate: {e}")
+        if "Failed to download and extract interface.crate" not in str(e):
+            raise Exception(f"Failed to download and extract interface.crate: {e}")
+        else:
+            raise e
 
     if not os.path.isdir(download_dir):
         raise Exception(f"{download_dir} directory is missing after extraction.")
@@ -212,7 +230,7 @@ def add_narrative_zoning_script(crate):
     
     return script_file
 
-def create_publication_crate(crate_dir="publication.crate"):
+def create_publication_crate(crate_dir="publication.crate", interface_crate_version="latest"):
     crate = ROCrate()
     crate.name = "Publication Crate"
     crate.description = "This crate contains the interface.crate and a Stencila DNF document for generating publications."
@@ -223,7 +241,7 @@ def create_publication_crate(crate_dir="publication.crate"):
     dnf_document = add_dnf_doc(crate)
     dnf_engine = add_dnf_engine(crate)
     dnf_engine_spec = add_dnf_engine_spec(crate)
-    dnf_data_dependencies = add_dnf_deps(crate)
+    dnf_data_dependencies = add_dnf_deps(crate, interface_crate_version)
     dnf_engine_schema = add_dnf_schema(crate)
     dnf_eval_doc = add_eval_dnf(crate)
     dnf_presentation_env = add_dnf_presentation(crate)
@@ -266,4 +284,13 @@ def create_publication_crate(crate_dir="publication.crate"):
         narrative_script.unlink()
 
 if __name__ == "__main__":
-    create_publication_crate()
+    parser = argparse.ArgumentParser(description="Create a publication crate with optional custom interface.crate version")
+    parser.add_argument(
+        "--interface-crate", "-i",
+        default="latest",
+        help="Specify interface.crate version (e.g., v1.0.0, v2.1.3, or 'latest' for latest release)"
+    )
+    
+    args = parser.parse_args()
+    
+    create_publication_crate(interface_crate_version=args.interface_crate)
