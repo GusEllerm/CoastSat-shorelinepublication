@@ -1,20 +1,31 @@
 
 
+"""
+Publication crate builder for CoastSat shoreline analysis data.
+
+This module creates RO-Crate compliant publication crates that include:
+- Dynamic narrative documents (Stencila SMD format)
+- Interface.crate dependencies from GitHub releases
+- Publication logic for dynamic content generation
+- Narrative zoning analysis scripts
+- Complete metadata and provenance tracking
+"""
+
 from rocrate.rocrate import ROCrate, ContextEntity, Dataset
 from rocrate.model.person import Person
 from pathlib import Path
-import shutil
 import argparse
-import subprocess
-import requests
-import zipfile
-import os
-import io
-import re
-import shutil
 import hashlib
+import io
+import os
+import re
+import requests
+import shutil
+import subprocess
+import zipfile
 
 def add_research_article(crate):
+    """Add the main research article entity to the crate."""
     main_article = crate.add(ContextEntity(crate, "#research-article", properties={
         "@type": "ScholarlyArticle",
         "name": "LivePublication: A Dynamic and Reproducible Research Article",
@@ -26,14 +37,16 @@ def add_research_article(crate):
     return main_article
 
 def add_eval_dnf(crate):
+    """Add evaluated DNF document placeholder entity."""
     evaluated_document = crate.add(ContextEntity(crate, "#dnf-evaluated-document", properties={
         "@type": ["CreativeWork", "SoftwareSourceCode"],
         "name": "Evaluated DNF Document",
-        "description": "Headless publicatoion.crate; does not contain evaluated DNF document"
+        "description": "Headless publication.crate; does not contain evaluated DNF document"
     }))
     return evaluated_document
 
 def add_dnf_presentation(crate):
+    """Add DNF presentation environment entity."""
     dnf_presentation_env = crate.add(ContextEntity(crate, "#dnf-presentation-environment", properties={
         "@type": "CreativeWork",
         "name": "DNF Presentation Environment",
@@ -43,11 +56,18 @@ def add_dnf_presentation(crate):
     return dnf_presentation_env
 
 def add_dnf_schema(crate):
-    wrapper = crate.get("#stencila-schema")
-
-    return wrapper
+    """Get the stencila schema entity that should already exist."""
+    # Return the entity directly - it should be created by add_dnf_engine_spec
+    entities = crate.get_entities()
+    for entity in entities:
+        if entity.id == "#stencila-schema":
+            return entity
+    
+    # Fallback: create it if it doesn't exist
+    return add_dnf_engine_spec(crate)
 
 def add_dnf_engine(crate):
+    """Add Stencila DNF engine software entity."""
     try:
         version_output = subprocess.check_output(["stencila", "--version"], text=True).strip()
     except Exception:
@@ -67,6 +87,7 @@ def add_dnf_engine(crate):
     return stencila_software
 
 def add_dnf_engine_spec(crate):
+    """Add Stencila DNF engine specification entity."""
     try:
         version_output = subprocess.check_output(["stencila", "--version"], text=True).strip()
     except subprocess.CalledProcessError:
@@ -86,6 +107,7 @@ def add_dnf_engine_spec(crate):
     return stencila_spec
 
 def add_dnf_doc(crate):
+    """Add the dynamic narrative document (SMD) template to the crate."""
     # Use the template from the new structure
     template_path = Path(__file__).parent / "templates" / "shoreline_publication.smd"
     sha256_hash = hashlib.sha256(open(template_path, "rb").read()).hexdigest() if template_path.exists() else ""
@@ -110,6 +132,16 @@ def add_dnf_doc(crate):
     return dnf_file
 
 def add_dnf_deps(crate, interface_crate_version="latest"):
+    """
+    Download and add interface.crate dependencies from GitHub releases.
+    
+    Args:
+        crate: The ROCrate instance to add dependencies to
+        interface_crate_version: Version to download ('latest' or specific tag)
+    
+    Returns:
+        Dataset entity representing the nested interface.crate
+    """
     repo_owner = "GusEllerm"
     repo_name = "CoastSat-interface.crate"
     download_dir = "publication.crate"
@@ -178,6 +210,7 @@ def add_dnf_deps(crate, interface_crate_version="latest"):
     return nested
 
 def add_publication_logic(crate):
+    """Add the publication logic Python script to the crate."""
     # Copy the publication logic to current working directory and crate directory
     logic_source = Path(__file__).parent / "publication_logic.py"
     
@@ -226,18 +259,26 @@ def add_narrative_zoning_script(crate):
         "keywords": ["shoreline", "coastal", "narrative", "zoning", "transects", "analysis"]
     })
     
-    # TODO: Add a RO-Crate entity for this file
-    
     return script_file
 
 def create_publication_crate(crate_dir="publication.crate", interface_crate_version="latest"):
+    """
+    Create a complete publication crate with all necessary components.
+    
+    Args:
+        crate_dir: Directory to create the publication crate in
+        interface_crate_version: Version of interface.crate to download
+    
+    Returns:
+        None (writes crate to disk)
+    """
     crate = ROCrate()
     crate.name = "Publication Crate"
     crate.description = "This crate contains the interface.crate and a Stencila DNF document for generating publications."
     creator = crate.add(Person(crate, "#creator", {"name": "Unknown Author"}))
     crate.creator = creator
 
-    # Add relations
+    # Add all entities to the crate
     dnf_document = add_dnf_doc(crate)
     dnf_engine = add_dnf_engine(crate)
     dnf_engine_spec = add_dnf_engine_spec(crate)
@@ -249,39 +290,43 @@ def create_publication_crate(crate_dir="publication.crate", interface_crate_vers
     publication_logic = add_publication_logic(crate)
     narrative_zoning = add_narrative_zoning_script(crate)
 
-    print(dnf_presentation_env)
-
     crate.mainEntity = research_article
-    research_article["isBasedOn"] = [dnf_eval_doc, dnf_presentation_env]
-    research_article["wasGeneratedBy"] = [dnf_presentation_env, publication_logic]
+    
+    # Set relationships between entities
+    # Note: Using type: ignore because static analysis incorrectly infers tuple types
+    research_article["isBasedOn"] = [dnf_eval_doc, dnf_presentation_env]  # type: ignore
+    research_article["wasGeneratedBy"] = [dnf_presentation_env, publication_logic]  # type: ignore
 
-    dnf_eval_doc["isBasedOn"] = [dnf_document, dnf_data_dependencies, dnf_engine]
-    dnf_presentation_env["isBasedOn"] = [dnf_engine]
-    dnf_engine["isBasedOn"] = [dnf_engine_spec]
+    dnf_eval_doc["isBasedOn"] = [dnf_document, dnf_data_dependencies, dnf_engine]  # type: ignore
+    dnf_presentation_env["isBasedOn"] = [dnf_engine]  # type: ignore
+    dnf_engine["isBasedOn"] = [dnf_engine_spec]  # type: ignore
 
-    dnf_document["conformsTo"] = dnf_engine_spec
+    dnf_document["conformsTo"] = dnf_engine_spec  # type: ignore
 
     # Write to disk
     Path(crate_dir).mkdir(parents=True, exist_ok=True)
     crate.write(crate_dir)
 
     # Clean up temporary files in working directory
-    working_dir_template = Path("shoreline_publication.smd")
-    if working_dir_template.exists():
-        working_dir_template.unlink()
-    
-    working_dir_logic = Path("publication_logic.py") 
-    if working_dir_logic.exists():
-        working_dir_logic.unlink()
+    _cleanup_temporary_files()
 
     # Clean up the downloaded interface.crate directory
     if os.path.isdir("interface.crate"):
         shutil.rmtree("interface.crate")
 
-    # Clean up narrative_zoning script if it exists
-    narrative_script = Path("narrative_zoning.py")
-    if narrative_script.exists():
-        narrative_script.unlink()
+
+def _cleanup_temporary_files():
+    """Clean up temporary files created during crate building."""
+    temp_files = [
+        "shoreline_publication.smd",
+        "publication_logic.py", 
+        "narrative_zoning.py"
+    ]
+    
+    for file_path in temp_files:
+        path = Path(file_path)
+        if path.exists():
+            path.unlink()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create a publication crate with optional custom interface.crate version")
