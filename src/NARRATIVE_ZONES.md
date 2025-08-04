@@ -81,6 +81,7 @@ The analysis supports two ordering modes:
 - **Priority Order**: Zones are sorted by importance, with critical erosion zones first and stable zones last
 
 This can be controlled via:
+
 - Command line: `--sort-by-priority` flag
 - Programmatically: `sort_by_priority=True` parameter
 
@@ -120,6 +121,7 @@ The zones provide a natural structure for organizing the publication narrative. 
 ### Usage Examples
 
 **Command Line:**
+
 ```bash
 # Priority order (critical zones first)
 python narrative_zoning.py aus0001 transects.geojson --sort-by-priority
@@ -129,6 +131,7 @@ python narrative_zoning.py aus0001 transects.geojson
 ```
 
 **Programmatic:**
+
 ```python
 from narrative_zoning import run_narrative_zoning
 
