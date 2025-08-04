@@ -28,11 +28,11 @@ except ImportError:
     GEOPANDAS_AVAILABLE = False
 
 __all__ = ["run_narrative_zoning"]
-def run_narrative_zoning(site_id: str, transects_file: str, min_zone_length: int = 3,  zone_definitions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def run_narrative_zoning(site_id: str, transects_file: str, min_zone_length: int = 3,  zone_definitions: Optional[Dict[str, Any]] = None, sort_by_priority: bool = False) -> Dict[str, Any]:
     """
     Entry point for programmatic use (e.g., Stencila). Returns JSON-serializable result.
     """
-    result = analyze_site(site_id, transects_file, min_zone_length, zone_definitions=zone_definitions)
+    result = analyze_site(site_id, transects_file, min_zone_length, zone_definitions=zone_definitions, sort_by_priority=sort_by_priority)
     return make_json_serializable(result)
 
 
@@ -341,7 +341,7 @@ def classify_transect_zone(transect: Dict[str, Any], zone_definitions: Optional[
     return classify_transect_zone_custom(transect, zone_definitions)
 
 
-def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None, sort_by_priority: bool = False) -> List[Dict[str, Any]]:
     """
     Identify contiguous narrative zones from a sequence of transects.
     
@@ -349,6 +349,7 @@ def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: i
         transects: List of transect features sorted by position
         min_zone_length: Minimum number of transects to form a zone
         zone_definitions: Optional custom zone definitions
+        sort_by_priority: If True, return zones sorted by zone priority instead of spatial order
         
     Returns:
         List of zone dictionaries with metadata
@@ -386,6 +387,11 @@ def identify_narrative_zones(transects: List[Dict[str, Any]], min_zone_length: i
     # Don't forget the last zone
     if current_zone_type is not None and len(current_zone_transects) >= min_zone_length:
         zones.append(create_zone_summary(current_zone_type, current_zone_transects, current_zone_start, zone_definitions, zone_counter))
+
+    # Sort zones by priority if requested
+    if sort_by_priority and zone_definitions:
+        # Get priority for each zone type, defaulting to 999 for unknown types
+        zones.sort(key=lambda zone: zone_definitions.get(zone['zone_type'], {}).get('priority', 999))
 
     return zones
 
@@ -520,7 +526,7 @@ def create_transect_dict(transects: List[Dict[str, Any]], zone_definitions: Opti
     return transect_dict
 
 
-def analyze_site_from_geodataframe(site_id: str, gdf, min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def analyze_site_from_geodataframe(site_id: str, gdf, min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None, sort_by_priority: bool = False) -> Dict[str, Any]:
     """
     Complete narrative zoning analysis for a site using a GeoDataFrame.
     
@@ -529,6 +535,7 @@ def analyze_site_from_geodataframe(site_id: str, gdf, min_zone_length: int = 3, 
         gdf: GeoDataFrame containing transect data
         min_zone_length: Minimum transects per zone
         zone_definitions: Optional custom zone definitions. If None, uses defaults.
+        sort_by_priority: If True, return zones sorted by zone priority instead of spatial order
         
     Returns:
         Dictionary containing zones and transect classifications
@@ -553,7 +560,7 @@ def analyze_site_from_geodataframe(site_id: str, gdf, min_zone_length: int = 3, 
         return make_json_serializable(result)
     
     # Identify narrative zones
-    zones = identify_narrative_zones(transects, min_zone_length, zone_definitions)
+    zones = identify_narrative_zones(transects, min_zone_length, zone_definitions, sort_by_priority)
     
     # Create transect dictionary with zone classifications
     transect_dict = create_transect_dict(transects, zone_definitions)
@@ -580,7 +587,7 @@ def analyze_site_from_geodataframe(site_id: str, gdf, min_zone_length: int = 3, 
     return make_json_serializable(result)
 
 
-def analyze_site(site_id: str, transects_file: str, min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def analyze_site(site_id: str, transects_file: str, min_zone_length: int = 3, zone_definitions: Optional[Dict[str, Any]] = None, sort_by_priority: bool = False) -> Dict[str, Any]:
     """
     Complete narrative zoning analysis for a site using a file path.
     
@@ -589,6 +596,7 @@ def analyze_site(site_id: str, transects_file: str, min_zone_length: int = 3, zo
         transects_file: Path to transects GeoJSON file
         min_zone_length: Minimum transects per zone
         zone_definitions: Optional custom zone definitions. If None, uses defaults.
+        sort_by_priority: If True, return zones sorted by zone priority instead of spatial order
         
     Returns:
         Dictionary containing zones and transect classifications
@@ -610,7 +618,7 @@ def analyze_site(site_id: str, transects_file: str, min_zone_length: int = 3, zo
         return make_json_serializable(result)
     
     # Identify narrative zones
-    zones = identify_narrative_zones(transects, min_zone_length, zone_definitions)
+    zones = identify_narrative_zones(transects, min_zone_length, zone_definitions, sort_by_priority)
     
     # Create transect dictionary with zone classifications
     transect_dict = create_transect_dict(transects, zone_definitions)
@@ -647,6 +655,7 @@ Examples:
   python narrative_zoning.py aus0001 transects_extended.geojson
   python narrative_zoning.py aus0002 data/transects.geojson --min-zone-length 5
   python narrative_zoning.py aus0003 data/transects.geojson --zone-definitions custom_zones.json
+  python narrative_zoning.py aus0004 data/transects.geojson --sort-by-priority
         """
     )
     
@@ -655,6 +664,8 @@ Examples:
     parser.add_argument('--min-zone-length', type=int, default=3,
                        help='Minimum number of transects to form a zone (default: 3)')
     parser.add_argument('--zone-definitions', help='Path to custom zone definitions JSON file')
+    parser.add_argument('--sort-by-priority', action='store_true',
+                       help='Sort zones by priority instead of spatial order')
     parser.add_argument('--output', '-o', help='Output JSON file (default: stdout)')
     parser.add_argument('--pretty', action='store_true', 
                        help='Pretty-print JSON output')
@@ -685,7 +696,7 @@ Examples:
             sys.exit(1)
     
     # Perform analysis
-    result = analyze_site(args.site_id, args.transects_file, args.min_zone_length, zone_definitions)
+    result = analyze_site(args.site_id, args.transects_file, args.min_zone_length, zone_definitions, args.sort_by_priority)
     
     # Format output
     if args.pretty:
