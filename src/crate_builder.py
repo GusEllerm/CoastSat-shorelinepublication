@@ -300,6 +300,9 @@ def create_publication_crate(crate_dir="publication.crate", interface_crate_vers
     dnf_eval_doc["isBasedOn"] = [dnf_document, dnf_data_dependencies, dnf_engine]  # type: ignore
     dnf_presentation_env["isBasedOn"] = [dnf_engine]  # type: ignore
     dnf_engine["isBasedOn"] = [dnf_engine_spec]  # type: ignore
+    
+    # Publication logic depends on narrative zoning for analysis
+    publication_logic["isBasedOn"] = [narrative_zoning]  # type: ignore
 
     dnf_document["conformsTo"] = dnf_engine_spec  # type: ignore
 
