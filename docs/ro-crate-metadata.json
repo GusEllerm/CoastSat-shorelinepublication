@@ -7,7 +7,7 @@
             "creator": {
                 "@id": "https://orcid.org/0000-0001-8260-231X"
             },
-            "datePublished": "2025-08-05T00:06:52+00:00",
+            "datePublished": "2025-08-05T05:54:06+00:00",
             "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
             "hasPart": [
                 {
@@ -148,7 +148,7 @@
                 "CreativeWork",
                 "SoftwareSourceCode"
             ],
-            "description": "Evaluated dynamic narrative document containing executed code and analysis for site nzd0023",
+            "description": "Evaluated dynamic narrative document containing executed code and analysis for site nzd0001",
             "hasPart": [
                 {
                     "@id": "DNF_eval.json"
@@ -171,7 +171,7 @@
                     "@id": "cached_primary_result.geojson"
                 }
             ],
-            "name": "Evaluated DNF Document for nzd0023"
+            "name": "Evaluated DNF Document for nzd0001"
         },
         {
             "@id": "#dnf-presentation-environment",
@@ -187,7 +187,7 @@
         {
             "@id": "#research-article",
             "@type": "ScholarlyArticle",
-            "description": "A dynamic and reproducible research publication for CoastSat shoreline analysis data from site nzd0023",
+            "description": "A dynamic and reproducible research publication for CoastSat shoreline analysis data from site nzd0001",
             "hasPart": [
                 {
                     "@id": "shorelinepublication.html"
@@ -201,7 +201,7 @@
                     "@id": "#dnf-presentation-environment"
                 }
             ],
-            "name": "Dynamic Shoreline Publication for Site nzd0023",
+            "name": "Dynamic Shoreline Publication for Site nzd0001",
             "wasGeneratedBy": [
                 {
                     "@id": "#dnf-presentation-environment"
@@ -217,9 +217,9 @@
                 "File",
                 "CreativeWork"
             ],
-            "description": "Generated shoreline publication for site nzd0023",
+            "description": "Generated shoreline publication for site nzd0001",
             "encodingFormat": "text/html",
-            "name": "Shoreline Publication for nzd0023"
+            "name": "Shoreline Publication for nzd0001"
         },
         {
             "@id": "DNF_eval.json",
@@ -228,9 +228,9 @@
                 "SoftwareSourceCode",
                 "CreativeWork"
             ],
-            "description": "Evaluated dynamic narrative document for site nzd0023",
+            "description": "Evaluated dynamic narrative document for site nzd0001",
             "encodingFormat": "application/json",
-            "name": "Evaluated DNF Document for nzd0023"
+            "name": "Evaluated DNF Document for nzd0001"
         },
         {
             "@id": "cached_shoreline.geojson",

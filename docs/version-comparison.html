@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Version Comparison - CoastSat Shoreline Publication</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            background: linear-gradient(135deg, #4299e1 0%, #38b2ac 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+        }
+        
+        .header p {
+            margin: 0;
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .version-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .version-panel h3 {
+            margin: 0 0 15px 0;
+            color: #4299e1;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        
+        .version-frame {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        
+        .nav-buttons {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #4299e1;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn.secondary {
+            background: #718096;
+        }
+        
+        .btn.secondary:hover {
+            background: #4a5568;
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons .btn {
+                display: block;
+                margin: 10px auto;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏖️ Version Comparison</h1>
+        <p>Exploring how shoreline publications evolve with different interface.crate versions</p>
+    </div>
+    
+    <div class="info-section">
+        <h3>Understanding Version Evolution</h3>
+        <p>
+            This comparison demonstrates how shoreline publications adapt to the state of the computational research over time. 
+            Each interface.crate version represents a state of the CoastSat experiment, with its specific computational 
+            workflow and results, resulting in different shoreline analysis outputs and visualizations.
+        </p>
+    </div>
+    
+    <div class="comparison-container">
+        <div class="version-panel">
+            <h3>Version: latest</h3>
+            <iframe src="shorelinepublication-v1.html" class="version-frame" title="Version 1 Shoreline Publication"></iframe>
+        </div>
+        
+        <div class="version-panel">
+            <h3>Version: interface.crate-d61c2052a-20250725024714</h3>
+            <iframe src="shorelinepublication-v2.html" class="version-frame" title="Version 2 Shoreline Publication"></iframe>
+        </div>
+    </div>
+    
+    <div class="info-section">
+        <h3>Generate Your Own Comparison</h3>
+        <p>
+            You can create live comparisons between any two interface.crate versions using the built-in comparison tools. 
+            This allows you to explore how different states of the CoastSat experiment affect the resulting shoreline publications.
+        </p>
+        
+        <h4>Using the Enhanced Test Script</h4>
+        <p>
+            The easiest way to generate comparisons is using the enhanced test script:
+        </p>
+        <pre style="background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Run enhanced test with specific interface.crate version
+./tests/test_publication_enhanced.sh SITE_ID --interface-crate VERSION
+
+# Example comparisons:
+./tests/test_publication_enhanced.sh nzd0001 --interface-crate latest
+./tests/test_publication_enhanced.sh nzd0001 --interface-crate interface.crate-d61c2052a-20250725024714
+
+# Generate populated crates for comparison
+./tests/test_publication_enhanced.sh nzd0001 --populate-crate --interface-crate latest
+        </pre>
+        
+        <h4>Manual Version Generation</h4>
+        <p>
+            For more control, you can manually generate specific versions using the shoreline publication system:
+        </p>
+        <pre style="background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Generate different versions for comparison
+./tests/test_publication_enhanced.sh SITE_ID --interface-crate VERSION1 --output shoreline-v1.html
+./tests/test_publication_enhanced.sh SITE_ID --interface-crate VERSION2 --output shoreline-v2.html
+
+# Available interface.crate versions can be found in the CoastSat-interface.crate releases
+        </pre>
+    </div>
+    
+    <div class="nav-buttons">
+        <a href="index.html" class="btn secondary">← Back to Home</a>
+        <a href="shorelinepublication.html" class="btn">View Current Publication</a>
+        <a href="ro-crate-preview.html" class="btn secondary">Browse Metadata</a>
+    </div>
+    
+    <div style="text-align: center; margin-top: 40px; padding: 20px; color: #666; font-size: 0.9rem;">
+        <p>Generated by the CoastSat <strong>Shoreline LivePublication</strong> System.</p>
+    </div>
+</body>
+</html>
