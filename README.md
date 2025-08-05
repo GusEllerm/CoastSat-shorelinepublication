@@ -25,38 +25,29 @@ python src/publication_logic.py aus0001 --populate-crate
 ```bash
 # Generate publication and deploy to GitHub Pages
 ./scripts/publish_to_docs.sh aus0001
-
-# Then commit and push
-git add docs/
-git commit -m "Publish aus0001 publication" 
-git push
 ```
-
-Enable GitHub Pages in repository settings (source: docs/ folder) and your publication will be live at:
-`https://GusEllerm.github.io/CoastSat-shorelinepublication/`
 
 ## 📋 Core Features
 
 - **Dynamic Publications**: Executable documents with live code and data
-- **RO-Crate Metadata**: Research Object metadata for reproducibility  
+- **RO-Crate Metadata**: Research Object metadata for reproducibility
 - **GitHub Pages Deployment**: One-command publishing to web
 - **Version Comparison**: Compare publications across interface versions
-- **Clean Output**: Quiet mode by default, verbose for debugging
 
 ## 🛠️ Common Commands
 
-| Task | Command |
-|------|---------|
-| Generate publication | `python src/publication_logic.py [SITE_ID]` |
-| Test with preview | `./tests/test_publication_enhanced.sh [SITE_ID]` |
-| Deploy to web | `./scripts/publish_to_docs.sh [SITE_ID]` |
-| Create GitHub release | `./scripts/create_publication.sh [SITE_ID]` |
-| Compare versions | `./tests/test_publication_compare.sh [SITE_ID] [VER1] [VER2]` |
+| Task                  | Command                                                         |
+| --------------------- | --------------------------------------------------------------- |
+| Generate publication  | `python src/publication_logic.py [SITE_ID]`                   |
+| Test with preview     | `./tests/test_publication_enhanced.sh [SITE_ID]`              |
+| Deploy to web         | `./scripts/publish_to_docs.sh [SITE_ID]`                      |
+| Create GitHub release | `./scripts/create_publication.sh [SITE_ID]`                   |
+| Compare versions      | `./tests/test_publication_compare.sh [SITE_ID] [VER1] [VER2]` |
 
 ## 💡 Key Options
 
 - `--populate-crate` - Include generated content in the crate
-- `--verbose` - Show detailed processing output  
+- `--verbose` - Show detailed processing output
 - `--no-open` - Don't auto-open generated HTML
 - `-i_crate [VERSION]` - Use specific interface.crate version
 
@@ -118,6 +109,7 @@ site_id = data['id']
 ```
 
 Analyzing site **{site_id}**...
+
 ```
 
 ## 📞 Contact
@@ -129,3 +121,4 @@ Analyzing site **{site_id}**...
 ---
 
 *CoastSat Shoreline Publication System - Making coastal research reproducible and accessible*
+```
