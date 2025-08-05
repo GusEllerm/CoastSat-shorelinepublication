@@ -275,6 +275,11 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
     # The generated file is always named shorelinepublication.html
     html_filename = "shorelinepublication.html"
     html_target_path = Path(crate_path) / html_filename
+    
+    # Remove existing file if it exists to avoid permission issues
+    if html_target_path.exists():
+        html_target_path.unlink()
+    
     shutil.copy(generated_html_path, html_target_path)
     print(f"📄 Copied generated HTML to {html_target_path}")
     
@@ -283,12 +288,7 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
         "@type": ["File", "CreativeWork"],
         "name": f"Shoreline Publication for {site_id}",
         "description": f"Generated shoreline publication for site {site_id}",
-        "encodingFormat": "text/html",
-        "about": {
-            "@id": f"#{site_id}",
-            "@type": "Place",
-            "name": f"Site {site_id}"
-        }
+        "encodingFormat": "text/html"
     })
     
     # Handle DNF evaluated document if provided
@@ -296,6 +296,10 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
     if dnf_eval_path and os.path.exists(dnf_eval_path):
         dnf_eval_filename = "DNF_eval.json"
         dnf_eval_target_path = Path(crate_path) / dnf_eval_filename
+        
+        # Remove existing file if it exists to avoid permission issues
+        if dnf_eval_target_path.exists():
+            dnf_eval_target_path.unlink()
         
         # First copy the file to the crate directory
         shutil.copy(dnf_eval_path, dnf_eval_target_path)
@@ -307,12 +311,7 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
             "@type": ["File", "SoftwareSourceCode", "CreativeWork"],
             "name": f"Evaluated DNF Document for {site_id}",
             "description": f"Evaluated dynamic narrative document for site {site_id}",
-            "encodingFormat": "application/json",
-            "about": {
-                "@id": f"#{site_id}",
-                "@type": "Place",
-                "name": f"Site {site_id}"
-            }
+            "encodingFormat": "application/json"
         })
         
         # Update the existing DNF evaluated document entity to reference the actual file
@@ -321,12 +320,42 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
                 entity["name"] = f"Evaluated DNF Document for {site_id}"
                 entity["description"] = f"Evaluated dynamic narrative document containing executed code and analysis for site {site_id}"
                 entity["hasPart"] = [dnf_eval_file]
-                entity["url"] = dnf_eval_filename
-                entity["about"] = {
-                    "@id": f"#{site_id}",
-                    "@type": "Place",
-                    "name": f"Site {site_id}"
-                }
+                
+                # Add cached data files as isBasedOn entities if they exist
+                cached_data_entities = []
+                existing_is_based_on = entity.get("isBasedOn", [])
+                if isinstance(existing_is_based_on, dict):
+                    existing_is_based_on = [existing_is_based_on]
+                elif existing_is_based_on is None:
+                    existing_is_based_on = []
+                
+                # Check for cached shoreline data
+                shoreline_cache_path = Path(crate_path) / "cached_shoreline.geojson"
+                if shoreline_cache_path.exists():
+                    shoreline_file = crate.add_file("cached_shoreline.geojson", properties={
+                        "@type": ["File", "Dataset"],
+                        "name": "Cached Shoreline Data",
+                        "description": "Downloaded shoreline data used in publication generation",
+                        "encodingFormat": "application/geo+json"
+                    })
+                    cached_data_entities.append(shoreline_file)
+                    print(f"📊 Added cached shoreline data to manifest")
+                
+                # Check for cached primary result data  
+                primary_result_cache_path = Path(crate_path) / "cached_primary_result.geojson"
+                if primary_result_cache_path.exists():
+                    primary_result_file = crate.add_file("cached_primary_result.geojson", properties={
+                        "@type": ["File", "Dataset"],
+                        "name": "Cached Primary Result Data", 
+                        "description": "Downloaded transects_extended data used in publication generation",
+                        "encodingFormat": "application/geo+json"
+                    })
+                    cached_data_entities.append(primary_result_file)
+                    print(f"📊 Added cached primary result data to manifest")
+                
+                # Combine existing isBasedOn with new cached data entities
+                entity["isBasedOn"] = existing_is_based_on + cached_data_entities
+                
                 print(f"✅ Updated DNF evaluated document entity to reference generated content for site {site_id}")
                 break
     
@@ -336,13 +365,7 @@ def populate_crate_with_generated_content(crate_path, generated_html_path, site_
         main_entity = crate.mainEntity
         main_entity["name"] = f"Dynamic Shoreline Publication for Site {site_id}"
         main_entity["description"] = f"A dynamic and reproducible research publication for CoastSat shoreline analysis data from site {site_id}"
-        main_entity["url"] = html_filename  # Reference the generated HTML file
         main_entity["hasPart"] = [html_file]  # Include the HTML file as part of the article
-        main_entity["about"] = {
-            "@id": f"#{site_id}",
-            "@type": "Place", 
-            "name": f"Site {site_id}"
-        }
         print(f"✅ Updated main entity to reference generated content for site {site_id}")
     
     # Write the updated crate back to disk (change to crate directory first)

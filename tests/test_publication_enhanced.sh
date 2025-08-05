@@ -1,11 +1,34 @@
 #!/bin/bash
 
+# Enhanced Publication Testing Script
+# Supports testing publication generation with optional crate population
+# Usage examples:
+#   ./tests/test_publication_enhanced.sh nzd0001                              # Basic generation (quiet mode)
+#   ./tests/test_publication_enhanced.sh nzd0001 --populate-crate             # Generate and populate crate (quiet mode)
+#   ./tests/test_publication_enhanced.sh nzd0001 --populate-crate --no-open   # Populate crate without opening HTML (quiet mode)
+#   ./tests/test_publication_enhanced.sh nzd0001 --verbose                    # Show detailed output
+#   ./tests/test_publication_enhanced.sh nzd0001 --populate-crate --verbose   # Verbose mode with crate population
+
 set -e  # Exit on any error
+
+# Function to print messages conditionally based on verbose mode
+log_info() {
+    if [ "$VERBOSE_MODE" = true ]; then
+        echo "$@"
+    fi
+}
+
+# Function to always print important messages
+log_important() {
+    echo "$@"
+}
 
 # Parse arguments
 AUTO_OPEN=true
 CUSTOM_SITE_ID=""
 CUSTOM_INTERFACE_CRATE=""
+POPULATE_CRATE=false
+VERBOSE_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -17,12 +40,22 @@ while [[ $# -gt 0 ]]; do
             CUSTOM_INTERFACE_CRATE="$2"
             shift 2
             ;;
+        --populate-crate)
+            POPULATE_CRATE=true
+            shift
+            ;;
+        -v|--verbose)
+            VERBOSE_MODE=true
+            shift
+            ;;
         -h|--help)
-            echo "Usage: $0 [SITE_ID] [--no-open] [-i_crate VERSION] [--help]"
+            echo "Usage: $0 [SITE_ID] [--no-open] [-i_crate VERSION] [--populate-crate] [--verbose] [--help]"
             echo "  SITE_ID              Custom site ID (default: test_site_TIMESTAMP)"
             echo "  --no-open            Don't automatically open the HTML file"
             echo "  -i_crate VERSION     Use specific interface.crate release version (default: latest)"
             echo "                       Examples: v1.0.0, v2.1.3, latest"
+            echo "  --populate-crate     Populate the crate with generated content and update metadata"
+            echo "  -v, --verbose        Show detailed output (default: quiet mode)"
             echo "  --help               Show this help message"
             exit 0
             ;;
@@ -37,103 +70,148 @@ done
 
 if [ -z "$CUSTOM_SITE_ID" ]; then
     CUSTOM_SITE_ID="test_site_$(date +%s)"
-    echo "📝 No site ID provided, using default: $CUSTOM_SITE_ID"
+    log_info "📝 No site ID provided, using default: $CUSTOM_SITE_ID"
 else
-    echo "📝 Using provided site ID: $CUSTOM_SITE_ID"
+    log_info "📝 Using provided site ID: $CUSTOM_SITE_ID"
 fi
 
-if [ -z "$CUSTOM_INTERFACE_CRATE" ]; then
-    echo "📦 Using latest interface.crate release"
+log_info "📦 Using interface.crate version: ${CUSTOM_INTERFACE_CRATE:-latest}"
+
+if [ "$POPULATE_CRATE" = true ]; then
+    log_info "📁 Will populate crate with generated content"
 else
-    echo "📦 Using interface.crate version: $CUSTOM_INTERFACE_CRATE"
+    log_info "📁 Will generate publication in current directory only"
 fi
 
-echo "🧹 Cleaning up old publication.crate..."
+log_info "🧹 Cleaning up old publication.crate..."
 if [ -d "publication.crate" ]; then
     rm -rf publication.crate/
-    echo "✅ Removed old publication.crate/"
+    log_info "✅ Removed old publication.crate/"
 else
-    echo "ℹ️  No existing publication.crate/ to remove"
+    log_info "ℹ️  No existing publication.crate/ to remove"
 fi
 
 # Run crate_builder.py with timeout to avoid hanging indefinitely
 if [ -n "$CUSTOM_INTERFACE_CRATE" ]; then
-    echo "🔧 Using custom interface.crate version: $CUSTOM_INTERFACE_CRATE"
-    timeout 300 python src/crate_builder.py --interface-crate "$CUSTOM_INTERFACE_CRATE" || {
-        echo "❌ src/crate_builder.py timed out or failed"
-        echo "💡 This might be due to network issues or GitHub API limits"
-        exit 1
-    }
+    log_info "🔧 Using custom interface.crate version: $CUSTOM_INTERFACE_CRATE"
+    if [ "$VERBOSE_MODE" = false ]; then
+        timeout 300 python src/crate_builder.py --interface-crate "$CUSTOM_INTERFACE_CRATE" >/dev/null 2>&1 || {
+            log_important "❌ src/crate_builder.py timed out or failed"
+            log_important "💡 This might be due to network issues or GitHub API limits"
+            exit 1
+        }
+    else
+        timeout 300 python src/crate_builder.py --interface-crate "$CUSTOM_INTERFACE_CRATE" || {
+            log_important "❌ src/crate_builder.py timed out or failed"
+            log_important "💡 This might be due to network issues or GitHub API limits"
+            exit 1
+        }
+    fi
 else
-    timeout 300 python src/crate_builder.py || {
-        echo "❌ src/crate_builder.py timed out or failed"
-        echo "💡 This might be due to network issues or GitHub API limits"
-        exit 1
-    }
+    if [ "$VERBOSE_MODE" = false ]; then
+        timeout 300 python src/crate_builder.py >/dev/null 2>&1 || {
+            log_important "❌ src/crate_builder.py timed out or failed"
+            log_important "💡 This might be due to network issues or GitHub API limits"
+            exit 1
+        }
+    else
+        timeout 300 python src/crate_builder.py || {
+            log_important "❌ src/crate_builder.py timed out or failed"
+            log_important "💡 This might be due to network issues or GitHub API limits"
+            exit 1
+        }
+    fi
 fi
 
 if [ $? -eq 0 ]; then
-    echo "✅ publication.crate/ regenerated successfully"
+    log_info "✅ publication.crate/ regenerated successfully"
 else
-    echo "❌ Failed to regenerate publication.crate/"
+    log_important "❌ Failed to regenerate publication.crate/"
     exit 1
 fi
 
-echo ""
-echo "📋 Checking publication.crate contents..."
+log_info ""
+log_info "📋 Checking publication.crate contents..."
 if [ -f "publication.crate/shoreline_publication.smd" ]; then
-    echo "✅ Template file found in publication.crate/"
-    echo ""
+    log_info "✅ Template file found in publication.crate/"
+    log_info ""
 else
-    echo "❌ Template file not found in publication.crate/"
+    log_important "❌ Template file not found in publication.crate/"
     exit 1
 fi
 
 if [ -f "publication.crate/publication_logic.py" ]; then
-    echo "✅ Logic file found in publication.crate/"
+    log_info "✅ Logic file found in publication.crate/"
 else
-    echo "❌ Logic file not found in publication.crate/"
+    log_important "❌ Logic file not found in publication.crate/"
     exit 1
 fi
 
-echo ""
-echo "🚀 Running shoreline publication generation..."
-echo "Using site ID: $CUSTOM_SITE_ID"
+log_info ""
+log_important "🚀 Running shoreline publication generation..."
+log_info "Using site ID: $CUSTOM_SITE_ID"
 
-python src/publication_logic.py "$CUSTOM_SITE_ID"
+if [ "$POPULATE_CRATE" = true ]; then
+    log_info "📁 Running with --populate-crate flag..."
+    if [ "$VERBOSE_MODE" = false ]; then
+        python src/publication_logic.py "$CUSTOM_SITE_ID" --populate-crate >/dev/null 2>&1
+    else
+        python src/publication_logic.py "$CUSTOM_SITE_ID" --populate-crate
+    fi
+else
+    if [ "$VERBOSE_MODE" = false ]; then
+        python src/publication_logic.py "$CUSTOM_SITE_ID" >/dev/null 2>&1
+    else
+        python src/publication_logic.py "$CUSTOM_SITE_ID"
+    fi
+fi
 
 if [ -f "shorelinepublication.html" ]; then
-    echo ""
-    echo "✅ HTML publication generated successfully!"
-    echo "📊 File size: $(ls -lh shorelinepublication.html | awk '{print $5}')"
-    echo "📅 Generated: $(date)"
-    echo "🆔 Site ID used: $CUSTOM_SITE_ID"
-    echo ""
-    echo "🌐 To view the result:"
-    echo "   file://$(pwd)/shorelinepublication.html"
-    echo ""
+    log_important ""
+    log_important "✅ HTML publication generated successfully!"
+    log_important "📊 File size: $(ls -lh shorelinepublication.html | awk '{print $5}')"
+    log_important "📅 Generated: $(date)"
+    log_important "🆔 Site ID used: $CUSTOM_SITE_ID"
+    
+    if [ "$POPULATE_CRATE" = true ]; then
+        log_important "📁 Crate populated with generated content"
+        if [ -f "publication.crate/shorelinepublication.html" ] && [ -f "publication.crate/DNF_eval.json" ]; then
+            log_info "   ✅ HTML file: publication.crate/shorelinepublication.html"
+            log_info "   ✅ DNF eval: publication.crate/DNF_eval.json"
+            if [ -f "publication.crate/cached_shoreline.geojson" ] && [ -f "publication.crate/cached_primary_result.geojson" ]; then
+                log_info "   ✅ Cached data files referenced in metadata"
+            fi
+        else
+            log_important "   ⚠️  Some crate files may be missing"
+        fi
+    fi
+    
+    log_important ""
+    log_important "🌐 To view the result:"
+    log_important "   file://$(pwd)/shorelinepublication.html"
+    log_important ""
     
     if [ "$AUTO_OPEN" = true ]; then
-        echo "🚀 Opening HTML file automatically..."
+        log_info "🚀 Opening HTML file automatically..."
         if command -v open >/dev/null 2>&1; then
             open "shorelinepublication.html"
-            echo "✅ Opened in default browser"
+            log_info "✅ Opened in default browser"
         elif command -v xdg-open >/dev/null 2>&1; then
             xdg-open "shorelinepublication.html"
-            echo "✅ Opened in default browser"
+            log_info "✅ Opened in default browser"
         elif command -v start >/dev/null 2>&1; then
             start "shorelinepublication.html"
-            echo "✅ Opened in default browser"
+            log_info "✅ Opened in default browser"
         else
-            echo "⚠️  Could not auto-open. Please open manually:"
-            echo "   file://$(pwd)/shorelinepublication.html"
+            log_info "⚠️  Could not auto-open. Please open manually:"
+            log_info "   file://$(pwd)/shorelinepublication.html"
         fi
     else
-        echo "ℹ️  Auto-open disabled. Open manually if desired."
+        log_info "ℹ️  Auto-open disabled. Open manually if desired."
     fi
-    echo ""
-    echo "🎉 Test completed successfully!"
+    log_important ""
+    log_important "🎉 Test completed successfully!"
 else
-    echo "❌ Failed to generate HTML publication"
+    log_important "❌ Failed to generate HTML publication"
     exit 1
 fi

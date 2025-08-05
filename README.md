@@ -34,8 +34,11 @@ CoastSat-shorelinepublication/
 ### Generate a Publication
 
 ```bash
-# Using the main logic
+# Generate publication in current directory
 python src/publication_logic.py aus0001
+
+# Generate publication AND populate the crate with generated content
+python src/publication_logic.py aus0001 --populate-crate
 
 # Using the backward-compatible wrapper
 python publication_crate.py
@@ -44,9 +47,22 @@ python publication_crate.py
 ### Run Tests
 
 ```bash
-# Enhanced testing with auto-preview
+# Enhanced testing with auto-preview (quiet mode by default)
 tests/test_publication_enhanced.sh aus0001
 
+# Show detailed output during testing
+tests/test_publication_enhanced.sh aus0001 --verbose
+
+# Generate and populate crate (quiet mode)
+tests/test_publication_enhanced.sh aus0001 --populate-crate
+
+# Generate and populate crate with detailed output
+tests/test_publication_enhanced.sh aus0001 --populate-crate --verbose
+```
+
+> **Note**: Tests run in quiet mode by default for clean output. Use `--verbose` for detailed debugging information.
+
+```bash
 # Release workflow testing
 tests/test_publication_creation.sh
 
@@ -56,25 +72,109 @@ tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250
 
 ### Advanced Options
 
+#### Crate Population
+
+Transform a "headless" publication crate into a complete archive with actual generated content:
+
+```bash
+# Generate publication and populate the crate
+python src/publication_logic.py nzd0001 --populate-crate
+```
+
+**What `--populate-crate` does:**
+
+- ✅ **Generates** the dynamic publication (HTML + DNF_eval.json)
+- ✅ **Copies** both files to the `publication.crate/` directory
+- ✅ **Updates** RO-Crate metadata to reference the actual generated files
+- ✅ **Preserves** all existing crate structure and relationships
+
+**Use cases:**
+
+- **Static Archival**: Create complete publication archives for long-term storage
+- **Content Distribution**: Package publications with all generated content included
+- **Metadata Validation**: Ensure crate metadata accurately reflects generated outputs
+- **Webservice Preparation**: Pre-populate crates for deployment scenarios
+
+**Before `--populate-crate`:**
+
+```
+publication.crate/
+├── shoreline_publication.smd    # Template only
+├── narrative_zoning.py          # Logic files
+├── publication_logic.py     
+└── ro-crate-metadata.json       # Metadata pointing to "potential" outputs
+```
+
+**After `--populate-crate`:**
+
+```
+publication.crate/
+├── shoreline_publication.smd    # Template
+├── shorelinepublication.html    # ✨ Generated HTML publication
+├── DNF_eval.json                # ✨ Evaluated dynamic narrative document
+├── narrative_zoning.py          # Logic files  
+├── publication_logic.py
+└── ro-crate-metadata.json       # ✨ Updated metadata referencing actual files
+```
+
+#### Output Verbosity Control
+
+By default, the testing script runs in **quiet mode** showing only essential information for a clean user experience. Use the `--verbose` flag to see detailed processing output for debugging:
+
+```bash
+# Quiet mode (default) - clean output with essential information only
+tests/test_publication_enhanced.sh aus0001
+
+# Verbose mode - detailed output for debugging and development
+tests/test_publication_enhanced.sh aus0001 --verbose
+
+# Quiet mode with crate population
+tests/test_publication_enhanced.sh aus0001 --populate-crate
+
+# Verbose mode with crate population for detailed monitoring
+tests/test_publication_enhanced.sh aus0001 --populate-crate --verbose
+```
+
+**Quiet Mode Output** (8 essential lines):
+```
+🚀 Running shoreline publication generation...
+✅ HTML publication generated successfully!
+📊 File size: 1.0M
+📅 Generated: Tue Aug  5 11:29:13 NZST 2025
+🆔 Site ID used: aus0001
+🌐 To view the result: file:///path/to/shorelinepublication.html
+🎉 Test completed successfully!
+```
+
+**Verbose Mode Output** (100+ lines with detailed processing information):
+- Complete Stencila conversion logs
+- File operations and path information  
+- Detailed error diagnostics
+- Step-by-step processing status
+
 #### Custom Interface.crate Version
 
 By default, the system downloads the latest interface.crate release. You can specify a specific version using the `--interface-crate` option:
 
 ```bash
-# Use a specific interface.crate version
+# Use a specific interface.crate version (quiet mode)
 tests/test_publication_enhanced.sh aus0001 -i_crate interface.crate-cb67e8e26-20250801011405
 
-# Use second-to-latest version
+# Use specific version with detailed output
+tests/test_publication_enhanced.sh aus0001 -i_crate interface.crate-cb67e8e26-20250801011405 --verbose
+
+# Use second-to-latest version (quiet mode)
 tests/test_publication_enhanced.sh aus0001 -i_crate interface.crate-d61c2052a-20250725024714
 
-# Explicitly use latest (default behavior)
-tests/test_publication_enhanced.sh aus0001 -i_crate latest
+# Explicitly use latest (default behavior) with verbose output
+tests/test_publication_enhanced.sh aus0001 -i_crate latest --verbose
 
-# Combine with other options
-tests/test_publication_enhanced.sh aus0001 --no-open -i_crate interface.crate-d61c2052a-20250725024714
+# Combine with other options (no auto-open, verbose output)
+tests/test_publication_enhanced.sh aus0001 --no-open -i_crate interface.crate-d61c2052a-20250725024714 --verbose
 ```
 
 **Direct crate_builder.py usage:**
+
 ```bash
 # Use custom interface.crate version directly
 python src/crate_builder.py --interface-crate interface.crate-cb67e8e26-20250801011405
@@ -84,6 +184,7 @@ python src/crate_builder.py --help
 ```
 
 **Finding Available Versions:**
+
 ```bash
 # List available interface.crate releases
 curl -s "https://api.github.com/repos/GusEllerm/CoastSat-interface.crate/releases" | grep '"tag_name"' | head -10
@@ -107,15 +208,6 @@ tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250
 tests/test_publication_compare.sh aus0001 latest interface.crate-d61c2052a-20250725024714 --output-dir my_comparison
 ```
 
-**Features:**
-- ✅ **Side-by-side comparison** in a split-screen web interface
-- ✅ **Same-speed synchronized scrolling** - documents scroll at the same rate (pixels), not normalized positioning
-- ✅ **Interactive controls** - toggle sync, reset view, open originals
-- ✅ **File size comparison** in generated report
-- ✅ **Automatic cleanup** of temporary files
-- ✅ **HTTP server** - avoids browser security restrictions with local file serving
-- ✅ **Port management** - automatically handles port conflicts from previous sessions
-
 ### Create GitHub Release
 
 ```bash
@@ -127,10 +219,18 @@ scripts/create_publication.sh aus0001
 
 ### **`src/publication_logic.py`**
 
-Main publication generation logic with dual execution modes:
+Main publication generation logic with dual execution modes and crate population capabilities:
 
 - **Development Mode**: Run from project root to generate publications
 - **Webservice Mode**: Run from within publication.crate for dynamic content
+- **Crate Population**: Use `--populate-crate` to transform headless crates into complete archives
+
+**Key Features:**
+
+- Dynamic document generation using Stencila pipeline
+- Site-specific data integration via `data.json`
+- RO-Crate metadata management and file association
+- Dual output modes: standalone generation vs. crate population
 
 ### **`src/crate_builder.py`**
 
@@ -152,91 +252,33 @@ To customize the publication template:
 1. **Edit the template**: Modify `src/templates/shoreline_publication.smd`
 2. **Rebuild the crate**: Run `python src/crate_builder.py`
 3. **Test locally**: Run `python src/publication_logic.py [site_id]`
-4. **Create release**: Run `scripts/create_publication.sh [site_id]`
+4. **Populate crate** (optional): Run `python src/publication_logic.py [site_id] --populate-crate`
+5. **Create release**: Run `scripts/create_publication.sh [site_id]`
 
-### Template Example
+### Publication Modes
 
-```markdown
-# My Custom Shoreline Analysis
+**Development/Testing Mode:**
 
-```python exec
-import json
-with open('data.json', 'r') as f:
-    data = json.load(f)
-  
-site_id = data['id'] 
-print(f"Analysis for site: {site_id}")
+```bash
+# Generate in current directory for testing
+python src/publication_logic.py nzd0001
 ```
 
+**Production/Archive Mode:**
+
+```bash
+# Generate AND populate the crate for deployment
+python src/publication_logic.py nzd0001 --populate-crate
 ```
-
-## 🔧 Technical Architecture
-
-- **Stencila 2.4.1**: Dynamic document rendering with executable Python code blocks  
-- **RO-Crate Standard**: Metadata and data provenance using ROCrate Python library
-- **Dual Execution**: Works both as development tool and webservice component
-- **GitHub Integration**: Automated release creation with embedded URLs
-
-### Publication Comparison System
-
-The comparison tool (`tests/test_publication_compare.sh`) provides advanced publication analysis:
-
-- **Same-Speed Scrolling**: Documents scroll at identical pixel rates, preserving natural document lengths
-- **Cross-Origin Security**: Built-in HTTP server (port 8000+) bypasses browser file:// restrictions  
-- **Port Conflict Resolution**: Automatic detection and cleanup of existing servers using `lsof`
-- **Debounced Synchronization**: Smooth 60fps scroll sync with conflict prevention
-- **Responsive Interface**: Split-screen design with fixed headers and interactive controls
-- **Comprehensive Reporting**: File size analysis and technical metadata in generated reports
-
-**Technical Notes:**
-- Uses percentage-free absolute pixel positioning for natural scroll behavior
-- Implements graceful fallbacks when iframe access is restricted by browser security
-- Supports documents of different lengths without forced normalization
-- Automatic server lifecycle management with background process detection
-
-## 🌐 Webservice Integration  
-
-The generated `publication.crate/` can be used by webservices:
-
-```python
-# Webservice usage example
-def generate_publication(site_id, output_path):
-    result = subprocess.run([
-        "python",
-        os.path.join("publication.crate", "publication_logic.py"), 
-        site_id,
-        "--output", 
-        output_path
-    ], check=True)
-    return output_path
-```
-
-The publication.crate is self-contained and portable for deployment.
-
-## 📝 Dependencies
-
-4. **Deploy**: Use generated `publication.crate/` in production
-
-## Key Features
-
-- ✅ **Dual Execution Modes**: Works from parent directory or inside publication.crate
-- ✅ **Auto-Detection**: Automatically detects execution context
-- ✅ **Cross-Platform**: Works on macOS, Linux, Windows
-- ✅ **Webservice Ready**: Can be called by web applications
-- ✅ **Dynamic Content**: Executable Python blocks in templates
-- ✅ **Data Integration**: Automatic site data loading from JSON
-- ✅ **Auto-Preview**: Opens generated HTML in browser
-- ✅ **RO-Crate Compliant**: Full metadata and provenance tracking
 
 ## Template Development
 
 The `shoreline_publication.smd` template supports:
 
 - **Markdown**: Standard markdown formatting
-- **Python Code Blocks**: `python exec` for executable code
-- **Data Access**: Site data available via `data.json`
-- **Variables**: Use computed values in text sections
-- **Stencila Features**: Full dynamic document capabilities
+- **Code Blocks**: `python exec` for executable code
+- **Data Access**: Site data available via `data.json` & interface.crate manifest
+- **Stencila Features**: Flow based node types for procedural content.
 
 Example template structure:
 
@@ -284,4 +326,4 @@ pip install -r requirements.txt
 
 ---
 
-*Last updated: July 2025*
+*Last updated: August 2025*

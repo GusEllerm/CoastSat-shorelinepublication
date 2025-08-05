@@ -149,7 +149,7 @@ dmypy.json
 *.h5
 
 # Large datasets
-data/
+# data/  # Uncommented to allow docs/ directory for GitHub Pages
 datasets/
 outputs/
 results/
@@ -168,3 +168,8 @@ credentials
 
 # publication crate
 publication.crate/
+
+# node
+node_modules/
+package-lock.json
+package.json

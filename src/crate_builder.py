@@ -275,7 +275,7 @@ def create_publication_crate(crate_dir="publication.crate", interface_crate_vers
     crate = ROCrate()
     crate.name = "Publication Crate"
     crate.description = "This crate contains the interface.crate and a Stencila DNF document for generating publications."
-    creator = crate.add(Person(crate, "#creator", {"name": "Unknown Author"}))
+    creator = crate.add(Person(crate, "https://orcid.org/0000-0001-8260-231X", {"name": "Gus Ellerm"}))
     crate.creator = creator
 
     # Add all entities to the crate

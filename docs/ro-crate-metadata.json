@@ -1,0 +1,256 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "creator": {
+                "@id": "https://orcid.org/0000-0001-8260-231X"
+            },
+            "datePublished": "2025-08-05T00:06:52+00:00",
+            "description": "This crate contains the interface.crate and a Stencila DNF document for generating publications.",
+            "hasPart": [
+                {
+                    "@id": "shoreline_publication.smd"
+                },
+                {
+                    "@id": "interface.crate/"
+                },
+                {
+                    "@id": "publication_logic.py"
+                },
+                {
+                    "@id": "narrative_zoning.py"
+                },
+                {
+                    "@id": "shorelinepublication.html"
+                },
+                {
+                    "@id": "DNF_eval.json"
+                },
+                {
+                    "@id": "cached_shoreline.geojson"
+                },
+                {
+                    "@id": "cached_primary_result.geojson"
+                }
+            ],
+            "mainEntity": {
+                "@id": "#research-article"
+            },
+            "name": "Publication Crate"
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "shoreline_publication.smd",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "SoftwareApplication"
+            ],
+            "conformsTo": {
+                "@id": "#stencila-schema"
+            },
+            "description": "The unresolved dynamic narrative document serving as input to the DNF Engine.",
+            "encodingFormat": "application/smd",
+            "name": "DNF Document File",
+            "sha256": "1d0df8a7919960b3db5b68a4cbce41f5ffaef503fd48568ab1fc710573437a4f"
+        },
+        {
+            "@id": "interface.crate/",
+            "@type": [
+                "RO-Crate",
+                "Dataset"
+            ],
+            "description": "Nested interface.crate containing Experiment Infrastructure execution data.",
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "name": "Interface Crate"
+        },
+        {
+            "@id": "publication_logic.py",
+            "@type": [
+                "File",
+                "SoftwareSourceCode"
+            ],
+            "description": "Python logic for generating publications from the DNF document.",
+            "encodingFormat": "text/x-python",
+            "isBasedOn": [
+                {
+                    "@id": "narrative_zoning.py"
+                }
+            ],
+            "name": "Publication Logic",
+            "sha256": "05c184e2e6b83d42838e70f5258e9dd52bcc6705e7703f7eae30f479cefc3c1f"
+        },
+        {
+            "@id": "narrative_zoning.py",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "SoftwareApplication"
+            ],
+            "applicationCategory": "Data Analysis",
+            "description": "Python script for analyzing shoreline transects and identifying narrative zones with similar characteristics.",
+            "encodingFormat": "text/x-python",
+            "keywords": [
+                "shoreline",
+                "coastal",
+                "narrative",
+                "zoning",
+                "transects",
+                "analysis"
+            ],
+            "name": "Narrative Zoning Analysis Script",
+            "programmingLanguage": "Python",
+            "sha256": "ddf83e40ee51210c8235978bc84ea1cca8f4a21a1602df21f21648634f69bffb"
+        },
+        {
+            "@id": "https://orcid.org/0000-0001-8260-231X",
+            "@type": "Person",
+            "name": "Gus Ellerm"
+        },
+        {
+            "@id": "#stencila",
+            "@type": "SoftwareApplication",
+            "description": "The DNF Engine used to resolve the dynamic narrative.",
+            "howToUse": "https://github.com/stencila/stencila/blob/main/docs/reference/cli.md",
+            "isBasedOn": [
+                {
+                    "@id": "#stencila-schema"
+                }
+            ],
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "name": "Stencila",
+            "operatingSystem": "all",
+            "softwareVersion": "stencila 2.5.1",
+            "url": "https://github.com/stencila/stencila"
+        },
+        {
+            "@id": "#stencila-schema",
+            "@type": "CreativeWork",
+            "description": "Specification and JSON Schemas used by the Stencila DNF Engine to validate and interpret dynamic documents.",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "name": "Stencila DNF Engine Specification",
+            "url": "https://github.com/stencila/stencila/tree/v2.5.1/schema"
+        },
+        {
+            "@id": "#dnf-evaluated-document",
+            "@type": [
+                "CreativeWork",
+                "SoftwareSourceCode"
+            ],
+            "description": "Evaluated dynamic narrative document containing executed code and analysis for site nzd0023",
+            "hasPart": [
+                {
+                    "@id": "DNF_eval.json"
+                }
+            ],
+            "isBasedOn": [
+                {
+                    "@id": "shoreline_publication.smd"
+                },
+                {
+                    "@id": "interface.crate/"
+                },
+                {
+                    "@id": "#stencila"
+                },
+                {
+                    "@id": "cached_shoreline.geojson"
+                },
+                {
+                    "@id": "cached_primary_result.geojson"
+                }
+            ],
+            "name": "Evaluated DNF Document for nzd0023"
+        },
+        {
+            "@id": "#dnf-presentation-environment",
+            "@type": "CreativeWork",
+            "description": "Environment responsible for converting the evaluated DNF document into presentation formats.",
+            "isBasedOn": [
+                {
+                    "@id": "#stencila"
+                }
+            ],
+            "name": "DNF Presentation Environment"
+        },
+        {
+            "@id": "#research-article",
+            "@type": "ScholarlyArticle",
+            "description": "A dynamic and reproducible research publication for CoastSat shoreline analysis data from site nzd0023",
+            "hasPart": [
+                {
+                    "@id": "shorelinepublication.html"
+                }
+            ],
+            "isBasedOn": [
+                {
+                    "@id": "#dnf-evaluated-document"
+                },
+                {
+                    "@id": "#dnf-presentation-environment"
+                }
+            ],
+            "name": "Dynamic Shoreline Publication for Site nzd0023",
+            "wasGeneratedBy": [
+                {
+                    "@id": "#dnf-presentation-environment"
+                },
+                {
+                    "@id": "publication_logic.py"
+                }
+            ]
+        },
+        {
+            "@id": "shorelinepublication.html",
+            "@type": [
+                "File",
+                "CreativeWork"
+            ],
+            "description": "Generated shoreline publication for site nzd0023",
+            "encodingFormat": "text/html",
+            "name": "Shoreline Publication for nzd0023"
+        },
+        {
+            "@id": "DNF_eval.json",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "CreativeWork"
+            ],
+            "description": "Evaluated dynamic narrative document for site nzd0023",
+            "encodingFormat": "application/json",
+            "name": "Evaluated DNF Document for nzd0023"
+        },
+        {
+            "@id": "cached_shoreline.geojson",
+            "@type": [
+                "File",
+                "Dataset"
+            ],
+            "description": "Downloaded shoreline data used in publication generation",
+            "encodingFormat": "application/geo+json",
+            "name": "Cached Shoreline Data"
+        },
+        {
+            "@id": "cached_primary_result.geojson",
+            "@type": [
+                "File",
+                "Dataset"
+            ],
+            "description": "Downloaded transects_extended data used in publication generation",
+            "encodingFormat": "application/geo+json",
+            "name": "Cached Primary Result Data"
+        }
+    ]
+}

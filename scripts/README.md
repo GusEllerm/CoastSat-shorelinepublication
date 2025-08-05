@@ -15,6 +15,24 @@ This directory contains automation and utility scripts for the CoastSat Shorelin
 - Patches crate metadata with release URLs using `patch_post_release.py`
 - Handles git operations and error recovery
 
+### `publish_to_docs.sh`
+**Purpose**: Generate publication and deploy to GitHub Pages via docs/ directory  
+**Usage**: `./publish_to_docs.sh [SITE_ID]`  
+**Description**: Complete workflow for creating GitHub Pages-ready publication with RO-Crate preview.
+
+**Key Features:**
+- Generates publication with populated crate using test framework
+- Creates RO-Crate HTML preview using `rochtml`
+- Copies complete publication to `docs/` directory
+- Renames preview to `index.html` for GitHub Pages
+- Provides step-by-step deployment instructions
+
+**GitHub Pages Setup:**
+1. Run the script: `./scripts/publish_to_docs.sh nzd0022`
+2. Commit the docs/ directory: `git add docs/ && git commit -m "Publish publication"`
+3. Push to GitHub: `git push`
+4. Enable GitHub Pages in repository settings (source: docs/ folder)
+
 ### `patch_post_release.py`
 **Purpose**: Add release URLs to publication.crate metadata post-release  
 **Usage**: `python patch_post_release.py <RELEASE_URL>`  
@@ -29,6 +47,10 @@ This directory contains automation and utility scripts for the CoastSat Shorelin
 ## Dependencies
 
 - **GitHub CLI (gh)**: Required for `create_publication.sh` to create releases
+- **ro-crate-html-js**: Required for `publish_to_docs.sh` to generate RO-Crate HTML previews
+  ```bash
+  npm install -g ro-crate-html-js
+  ```
 - **ROCrate Python library**: Required for `patch_post_release.py` to manipulate crate metadata
 - **Git**: Required for version control operations
 
