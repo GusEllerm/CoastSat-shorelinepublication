@@ -880,7 +880,6 @@ The number of valid data points per transect (`n_points_nonan`) ranges from `sum
 > min_zone_length = max(3, int(len(site_primary_data) / 10))  # Minimum of 3, or len(site_primary_data)//3
 > # Get areas of interest (AOIs) for the site
 > aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions, sort_by_priority=True)
-> print(aois)
 > aoi_zones = aois.get('zones', [])
 > all_transects = aois.get('transects', [])
 > ```
