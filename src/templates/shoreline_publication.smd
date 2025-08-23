@@ -259,16 +259,30 @@ def plot_zone_transect_timeseries(site_time_series_df, zone_transects, zone_metr
         valid_transects = [(tid, site_time_series_df[['dates', tid]].dropna()) 
                            for tid in transect_ids if tid in site_time_series_df.columns]
 
+        # Filter out transects with insufficient data
+        valid_transects = [(tid, data) for tid, data in valid_transects 
+                          if len(data) > 0 and len(data.columns) >= 2]
+
         if valid_transects:
             # Zone baseline: average of all values
-            all_values = [val for _, data in valid_transects for val in data.iloc[:, 1].tolist()]
+            all_values = []
+            for _, data in valid_transects:
+                if data.shape[1] >= 2:  # Ensure we have at least 2 columns
+                    all_values.extend(data.iloc[:, 1].tolist())
+            
+            if not all_values:
+                print("No valid transect data available for zone analysis.")
+                return
+                
             zone_baseline = np.mean(all_values)
 
             # Efficient lookup with dicts for each transect
-            transect_dicts = [
-                (tid, dict(zip(data['dates'], data.iloc[:, 1] - zone_baseline)))
-                for tid, data in valid_transects
-            ]
+            transect_dicts = []
+            for tid, data in valid_transects:
+                if data.shape[1] >= 2:  # Ensure we have at least 2 columns
+                    transect_dicts.append(
+                        (tid, dict(zip(data['dates'], data.iloc[:, 1] - zone_baseline)))
+                    )
 
             all_dates = sorted(set().union(*[data['dates'] for _, data in valid_transects]))
 
@@ -286,16 +300,17 @@ def plot_zone_transect_timeseries(site_time_series_df, zone_transects, zone_metr
 
             # Plot all individual transects (all visible)
             for i, (tid, data) in enumerate(valid_transects):
-                fig.add_trace(go.Scatter(
-                    x=data['dates'],
-                    y=data.iloc[:, 1] - zone_baseline,
-                    mode='lines',
-                    name=tid,
-                    opacity=0.6,
-                    visible=True,  # Show all
-                    line=dict(color=colors[i % len(colors)], width=1),
-                    hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'
-                ))
+                if data.shape[1] >= 2:  # Ensure we have at least 2 columns
+                    fig.add_trace(go.Scatter(
+                        x=data['dates'],
+                        y=data.iloc[:, 1] - zone_baseline,
+                        mode='lines',
+                        name=tid,
+                        opacity=0.6,
+                        visible=True,  # Show all
+                        line=dict(color=colors[i % len(colors)], width=1),
+                        hovertemplate='%{fullData.name}: %{y:.1f}m<extra></extra>'
+                    ))
 
             # Smoothed zone average
             if len(zone_values) > 1:
@@ -370,7 +385,7 @@ def plot_zone_transect_timeseries(site_time_series_df, zone_transects, zone_metr
             fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
 
             # Set x-range to emphasize recent data
-            if zone_dates:
+            if zone_dates and len(zone_dates) > 0:
                 end_date = pd.to_datetime(zone_dates[-1])
                 start_date = pd.to_datetime(zone_dates[0])
                 data_span = (end_date - start_date).days / 365.25
@@ -387,6 +402,11 @@ def plot_zone_uncertainty_metrics(site_time_series_df, zone_transects, window_si
         df = df.dropna()
         if len(df) < window_size:
             return []
+        
+        # Check if we have the required columns
+        if len(df.columns) < 2:
+            print(f"Warning: DataFrame has insufficient columns: {list(df.columns)}")
+            return []
 
         df = df.sort_values('dates')
         df['ordinal'] = pd.to_datetime(df['dates']).map(pd.Timestamp.toordinal)
@@ -395,7 +415,16 @@ def plot_zone_uncertainty_metrics(site_time_series_df, zone_transects, window_si
         for i in range(len(df) - window_size + 1):
             window = df.iloc[i:i+window_size]
             X = window[['ordinal']]
+            
+            # Safely access the second column (transect data)
+            if window.shape[1] < 2:
+                continue
             y = window.iloc[:, 1]
+            
+            # Skip if y has no valid data
+            if len(y) == 0 or y.isna().all():
+                continue
+                
             model = LinearRegression().fit(X, y)
             preds = model.predict(X)
             r2 = r2_score(y, preds)
@@ -847,13 +876,55 @@ aoi_definitions =  {
 ```
 
 ```python exec
+# Handle potential null/None values in the data
 numeric_data = site_primary_data.select_dtypes(include="number")
-summary = numeric_data.agg(["count", "mean", "min", "max", "std"]).transpose()
-summary = summary.round(3)
+
+# Check if we have any numeric data to analyze
+if len(numeric_data.columns) == 0 or len(numeric_data) == 0:
+    # Create a placeholder summary for sites with no numeric data
+    summary = pd.DataFrame({
+        'count': [0], 'mean': [None], 'min': [None], 'max': [None], 'std': [None]
+    }, index=['placeholder'])
+    has_numeric_data = False
+else:
+    # Drop columns that are all null/nan
+    numeric_data_clean = numeric_data.dropna(axis=1, how='all')
+    
+    if len(numeric_data_clean.columns) == 0:
+        # All numeric columns are null
+        summary = pd.DataFrame({
+            'count': [0], 'mean': [None], 'min': [None], 'max': [None], 'std': [None]
+        }, index=['placeholder'])
+        has_numeric_data = False
+    else:
+        summary = numeric_data_clean.agg(["count", "mean", "min", "max", "std"]).transpose()
+        summary = summary.round(3)
+        has_numeric_data = True
+
+# Helper function to safely get summary values
+def get_summary_value(metric, stat, default="N/A"):
+    try:
+        if not has_numeric_data or metric not in summary.index:
+            return default
+        value = summary.loc[metric, stat]
+        if pd.isna(value) or value is None:
+            return default
+        return value
+    except (KeyError, IndexError):
+        return default
 ```
 
-This dataset contains `len(site_primary_data)`{python exec} transects associated with the shoreline at site `site_primary_data['site_id'].iloc[0]`{python exec}. Each transect represents a segment of the coastline for which elevation and positional data have been analysed to estimate shoreline change trends and related metrics.
-The orientation of transects spans from `summary.loc["orientation", "min"]`{python exec}° to `summary.loc["orientation", "max"]`{python exec}°, with a mean orientation of `summary.loc["orientation", "mean"]`{python exec}°, indicating the general alignment of shoreline segments within this site.
+This dataset contains `len(site_primary_data)`{python exec} transects associated with the shoreline at site `site_primary_data['site_id'].iloc[0] if len(site_primary_data) > 0 else site_id`{python exec}. Each transect represents a segment of the coastline for which elevation and positional data have been analysed to estimate shoreline change trends and related metrics.
+
+::: if has_numeric_data and "orientation" in summary.index
+
+The orientation of transects spans from `get_summary_value("orientation", "min")`{python exec}° to `get_summary_value("orientation", "max")`{python exec}°, with a mean orientation of `get_summary_value("orientation", "mean")`{python exec}°, indicating the general alignment of shoreline segments within this site.
+
+::: else
+
+**Note:** Orientation data is not available for this site.
+
+:::
 
 ```python exec
 site_map = create_transect_map(
@@ -864,24 +935,49 @@ site_map = create_transect_map(
 site_map
 ```
 
+::: if has_numeric_data and "trend" in summary.index
+
 In terms of shoreline change:
-- The average **linear trend** across all transects is `summary.loc["trend", "mean"]`{python exec} m/year, with individual values ranging from `summary.loc["trend", "min"]`{python exec} to `summary.loc["trend", "max"]`{python exec}, suggesting a `("net erosional" if summary.loc["trend", "mean"] < 0 else "net accretional")`{python exec} trend overall.
-- The **Root Mean Square Error (RMSE)** of the trend model averages `summary.loc["rmse", "mean"]`{python exec} m, indicating the typical deviation between observed points and the fitted trend line.
+- The average **linear trend** across all transects is `get_summary_value("trend", "mean")`{python exec} m/year, with individual values ranging from `get_summary_value("trend", "min")`{python exec} to `get_summary_value("trend", "max")`{python exec}, suggesting a `("net erosional" if get_summary_value("trend", "mean", 0) < 0 else "net accretional")`{python exec} trend overall.
+- The **Root Mean Square Error (RMSE)** of the trend model averages `get_summary_value("rmse", "mean")`{python exec} m, indicating the typical deviation between observed points and the fitted trend line.
+
+::: else
+
+**Note:** Trend analysis data is not available for this site. This may indicate insufficient temporal data for trend calculations.
+
+:::
+
+::: if has_numeric_data and "cil" in summary.index and "ciu" in summary.index
 
 Confidence intervals on shoreline position trends are also available:
-- The mean **lower bound** is `summary.loc["cil", "mean"]`{python exec}, and the mean **upper bound** is `summary.loc["ciu", "mean"]`{python exec}, reflecting the uncertainty range around trend estimates.
+- The mean **lower bound** is `get_summary_value("cil", "mean")`{python exec}, and the mean **upper bound** is `get_summary_value("ciu", "mean")`{python exec}, reflecting the uncertainty range around trend estimates.
 
-The number of valid data points per transect (`n_points_nonan`) ranges from `summary.loc["n_points_nonan", "min"]`{python exec} to `summary.loc["n_points_nonan", "max"]`{python exec}, with an average of `summary.loc["n_points_nonan", "mean"]`{python exec}.
+:::
+
+::: if has_numeric_data and "n_points_nonan" in summary.index
+
+The number of valid data points per transect (`n_points_nonan`) ranges from `get_summary_value("n_points_nonan", "min")`{python exec} to `get_summary_value("n_points_nonan", "max")`{python exec}, with an average of `get_summary_value("n_points_nonan", "mean")`{python exec}.
+
+:::
 
 ## Site Zone Analysis
 
 > [!info]+ Site Zone Configuration
 > ```python exec echo
 > min_zone_length = max(3, int(len(site_primary_data) / 10))  # Minimum of 3, or len(site_primary_data)//3
-> # Get areas of interest (AOIs) for the site
-> aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions, sort_by_priority=True)
-> aoi_zones = aois.get('zones', [])
-> all_transects = aois.get('transects', [])
+> 
+> # Initialize default values
+> aoi_zones = []
+> all_transects = []
+> 
+> try:
+>     # Get areas of interest (AOIs) for the site
+>     aois = run_narrative_zoning(site_id, cached_primary_result_path, min_zone_length=min_zone_length, zone_definitions=aoi_definitions, sort_by_priority=True)
+>     aoi_zones = aois.get('zones', [])
+>     all_transects = aois.get('transects', [])
+> except Exception as e:
+>     print(f"Warning: Narrative zoning failed for site {site_id}: {e}")
+>     # Keep the default empty values
 > ```
 
 ::: if len(aoi_zones) == 0
@@ -899,15 +995,16 @@ Zone definitions applied to this site can be found in section `Area of Interest 
 :::
 
 <!--- The following conditional blocks pre-process the timeseries data for different site types --->
-::: if "nzd" in site_id
+::: if "nzd" in site_id or "ber" in site_id
 
 ```python exec
 # If the site is a New Zealand site, we access its tidally corrected time series data
 time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-transecttimeseriestidallycorrected-2")
-site_time_series_entity = [
+site_time_series_candidates = [
     e for e in time_series_data_by_site
     if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
-][0]  # Get the first match
+]
+site_time_series_entity = site_time_series_candidates[0] if site_time_series_candidates else None  # Get the first match
 site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
 # Download and load the site time series CSV data
 if site_time_series_url:
@@ -926,10 +1023,11 @@ else:
 ```python exec 
 # If the site is from the Pacific Rim, we access its time series data
 time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-timeseriestidallycorrected-1")
-site_time_series_entity = [
+site_time_series_candidates = [
     e for e in time_series_data_by_site
     if site_id in (e.get("@id") if isinstance(e, dict) else getattr(e, "id", ""))
-][0]  # Get the first match
+]
+site_time_series_entity = site_time_series_candidates[0] if site_time_series_candidates else None  # Get the first match
 
 site_time_series_url = convert_to_raw_url(site_time_series_entity["@id"]) if site_time_series_entity else None
 # Download and load the site time series CSV data
@@ -1116,33 +1214,37 @@ No analysis available for this zone type.
 >     "rmse": ("m", 1),
 >     "intercept": ("", 1)
 > }
-> property_keys = zone_transects[0]["properties"].keys()
+> 
+> # Check if zone_transects is not empty before accessing elements
 > datatable_columns = []
-> for key in property_keys:
->     values = []
->     for t in zone_transects:
->         val = t["properties"].get(key)
+> if zone_transects and len(zone_transects) > 0:
+>     property_keys = zone_transects[0]["properties"].keys()
+>     for key in property_keys:
+>         values = []
+>         for t in zone_transects:
+>             val = t["properties"].get(key)
 > 
->         if val is None:
->             values.append("–")
->         elif key in rounding_map:
->             unit, digits = rounding_map[key]
->             try:
->                 rounded = round(val, digits)
->                 values.append(f"{rounded}{unit}" if unit else f"{rounded}")
->             except Exception:
+>             if val is None:
+>                 values.append("–")
+>             elif key in rounding_map:
+>                 unit, digits = rounding_map[key]
+>                 try:
+>                     rounded = round(val, digits)
+>                     values.append(f"{rounded}{unit}" if unit else f"{rounded}")
+>                 except Exception:
+>                     values.append(str(val))
+>             else:
 >                 values.append(str(val))
->         else:
->             values.append(str(val))
 > 
->     column = {
->         "type": "DatatableColumn",
->         "name": key,
->         "values": values
->     }
->     datatable_columns.append(column)
+>         column = {
+>             "type": "DatatableColumn",
+>             "name": key,
+>             "values": values
+>         }
+>         datatable_columns.append(column)
 > 
-> dict(type="Datatable", columns=datatable_columns) # Present the datatable in the report
+> # Present the datatable in the report (empty if no transects)
+> dict(type="Datatable", columns=datatable_columns) if datatable_columns else {"type": "Paragraph", "content": [{"type": "Text", "value": "No transect data available for this zone."}]}
 > ```
 
 ::::
