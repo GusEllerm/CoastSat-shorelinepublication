@@ -92,6 +92,47 @@ except Exception as e:
     print(f"Error loading publication crate (will use cached data): {e}")
 ```
 
+```python exec
+# Function to extract commit date from GitHub API
+def get_commit_date(github_commit_url):
+    """Extract commit date from a GitHub commit URL"""
+    if not github_commit_url:
+        return None
+    
+    # Extract repo and commit hash from URL
+    import re
+    match = re.match(r"https://github\.com/(.+)/(.+)/commit/([a-f0-9]+)", github_commit_url)
+    if not match:
+        return None
+    
+    owner, repo, commit_hash = match.groups()
+    
+    try:
+        # Make API request to get commit info
+        import requests
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_hash}"
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            commit_data = response.json()
+            commit_date = commit_data['commit']['committer']['date']
+            # Convert to readable format
+            from datetime import datetime
+            dt = datetime.fromisoformat(commit_date.replace('Z', '+00:00'))
+            return dt.strftime('%B %d, %Y')
+        else:
+            return None
+    except Exception as e:
+        print(f"Error fetching commit date: {e}")
+        return None
+
+# Extract version information
+print(interface_crate.mainEntity)
+coastsat_version = interface_crate.mainEntity.get("version") if interface_crate else None
+coastsat_commit_date = get_commit_date(coastsat_version)
+interface_crate_version = interface_crate.mainEntity.get("url") if interface_crate else None
+publication_crate_version = publication_crate.mainEntity.get("url") if publication_crate else None
+```
+
 ```python exec 
 # Before narrative content, some helper functions to interface with the crates:
 def query_by_link(crate, prop, target_id, match_substring=False):
@@ -776,6 +817,7 @@ site_primary_data = primary_result_gdf[primary_result_gdf['site_id'] == site_id]
 
 # Site Report: `site_id`{python exec}
 ### Location: `location_name`{python exec}
+#### Generated from CoastSat version committed on `coastsat_commit_date`{python exec}
 
 > [!info]+ Site Statistics
 > This table summarizes the key statistics for the site.
@@ -1243,7 +1285,6 @@ No analysis available for this zone type.
 >         }
 >         datatable_columns.append(column)
 > 
-> # Present the datatable in the report (empty if no transects)
 > dict(type="Datatable", columns=datatable_columns) if datatable_columns else {"type": "Paragraph", "content": [{"type": "Text", "value": "No transect data available for this zone."}]}
 > ```
 
@@ -1324,13 +1365,13 @@ dict(type="Datatable", columns=datatable["columns"])  # Present the datatable in
 #### LivePublication Data
 
 ```python exec
-interface_crate_version = interface_crate.mainEntity.get("url")
-coastsat_version = interface_crate.mainEntity.get("version")
-publication_crate_version = publication_crate.mainEntity.get("url")
+interface_crate_version = interface_crate.mainEntity.get("url") if interface_crate else None
+coastsat_version = interface_crate.mainEntity.get("version") if interface_crate else None
+publication_crate_version = publication_crate.mainEntity.get("url") if publication_crate else None
 ```
 
 This publication is part of the CoastSat project, which aims to monitor coastal change using satellite imagery.
-It is based on `dict(type="Link", target=interface_crate_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the _interface.crate_, and `dict(type="Link", target=coastsat_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the CoastSat GitHub repository.
+It is based on `dict(type="Link", target=interface_crate_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the _interface.crate_, and `dict(type="Link", target=coastsat_version, content=[dict(type="Text", value=f"this")])`{python exec} version of the CoastSat GitHub repository`f" (committed on {coastsat_commit_date})" if coastsat_commit_date else ""`{python exec}.
 
 > [!tip]- Shoreline publication.crate
 > This publication.crate is available for download `dict(type="Link", target=publication_crate_version, content=[dict(type="Text", value=f"here")])`{python exec}.
