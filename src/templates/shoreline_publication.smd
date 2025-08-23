@@ -1538,7 +1538,7 @@ else:
 
 ### Data Processing
 
-The analysis began with the complete satellite-derived shoreline dataset containing `original_data_rows`{python exec} temporal observations across `num_transects_total`{python exec} shore-normal transects. After applying the specified date range filter from `from_date_human`{python exec} to `to_date_human`{python exec}, the dataset was reduced to `filtered_data_rows`{python exec} observations.
+The analysis began with the complete satellite-derived shoreline dataset containing `original_data_rows`{python exec} observations for `num_transects_total`{python exec} shore-normal transects. After applying the specified date range filter from `from_date_human`{python exec} to `to_date_human`{python exec}, the dataset was reduced to `filtered_data_rows`{python exec} observations for `num_transects_total`{python exec} shore-normal transects.
 
 ::: if time_bounded_analysis_available
 
