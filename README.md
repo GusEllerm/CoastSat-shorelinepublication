@@ -36,13 +36,13 @@ python src/publication_logic.py aus0001 --populate-crate
 
 ## 🛠️ Common Commands
 
-| Task                  | Command                                                         |
-| --------------------- | --------------------------------------------------------------- |
-| Generate publication  | `python src/publication_logic.py [SITE_ID]`                   |
-| Test with preview     | `./tests/test_publication_enhanced.sh [SITE_ID]`              |
-| Deploy to web         | `./scripts/publish_to_docs.sh [SITE_ID]`                      |
-| Create GitHub release | `./scripts/create_publication.sh [SITE_ID]`                   |
-| Compare versions      | `./tests/test_publication_compare.sh [SITE_ID] [VER1] [VER2]` |
+| Task                  | Command                                                                      |
+| --------------------- | ---------------------------------------------------------------------------- |
+| Generate publication  | `python src/publication_logic.py [SITE_ID]`                                |
+| Test with preview     | `./tests/test_publication_enhanced.sh [SITE_ID]`                           |
+| Deploy to web         | `./scripts/publish_to_docs.sh [SITE_ID]`                                   |
+| Create GitHub release | `./scripts/create_publication.sh [SITE_ID]`                                |
+| Compare versions      | `./tests/test_publication_compare.sh [SITE_ID] [VER1] [VER2]`              |
 | Time-bounded analysis | `./tests/test_publication_enhanced.sh [SITE_ID] --from [DATE] --to [DATE]` |
 
 ## 💡 Key Options
@@ -71,12 +71,14 @@ python src/publication_logic.py aus0001 --from 01-01-2020 --populate-crate
 ```
 
 **Features:**
-- **Recalculated Trends**: Linear regression trends recalculated for the specified period
-- **Time-Bounded Zone Analysis**: Narrative zones identified based on time-limited behavior
-- **Comparative Metrics**: Direct comparison with full-dataset analysis
-- **Period-Specific Maps**: Visualizations showing trends for the specified timeframe
+
+1. **Recalculated Trends**: Linear regression trends recalculated for the specified period
+1. **Time-Bounded Zone Analysis**: Narrative zones identified based on time-limited behavior
+1. **Comparative Metrics**: Direct comparison with full-dataset analysis
+1. **Period-Specific Maps**: Visualizations showing trends for the specified timeframe
 
 **Use Cases:**
+
 - Storm impact assessment (before/after major events)
 - Decadal change analysis
 - Policy impact evaluation
