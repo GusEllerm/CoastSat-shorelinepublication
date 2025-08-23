@@ -133,11 +133,11 @@ def add_dnf_doc(crate):
 
 def add_dnf_deps(crate, interface_crate_version="latest"):
     """
-    Download and add interface.crate dependencies from GitHub releases.
+    Download and add interface.crate dependencies from GitHub releases or use local directory.
     
     Args:
         crate: The ROCrate instance to add dependencies to
-        interface_crate_version: Version to download ('latest' or specific tag)
+        interface_crate_version: Version to download ('latest', specific tag, or local path)
     
     Returns:
         Dataset entity representing the nested interface.crate
@@ -146,56 +146,72 @@ def add_dnf_deps(crate, interface_crate_version="latest"):
     repo_name = "CoastSat-interface.crate"
     download_dir = "publication.crate"
 
-    # Determine API URL based on version
-    if interface_crate_version == "latest":
-        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-        print("📦 Fetching latest interface.crate release...")
+    # Check if interface_crate_version is a local path
+    if os.path.isdir(interface_crate_version) or interface_crate_version.startswith('./') or interface_crate_version.startswith('/'):
+        print(f"📁 Using local interface.crate: {interface_crate_version}")
+        
+        # Create interface.crate directory inside publication.crate
+        interface_crate_dir = os.path.join(download_dir, "interface.crate")
+        os.makedirs(download_dir, exist_ok=True)
+        
+        # Copy the local interface.crate to the publication.crate directory
+        if os.path.exists(interface_crate_dir):
+            shutil.rmtree(interface_crate_dir)
+        shutil.copytree(interface_crate_version, interface_crate_dir)
+        print(f"✅ Copied local interface.crate to {interface_crate_dir}")
+        
     else:
-        api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{interface_crate_version}"
-        print(f"📦 Fetching interface.crate release: {interface_crate_version}...")
-
-    token_path = Path("token.txt")
-    token = token_path.read_text().strip() if token_path.exists() else None
-
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "CoastSat-ShorelinePublication"
-    }
-    if token:
-        headers["Authorization"] = f"token {token}"
-    
-    try:
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        release = response.json()
-
-        asset = next((a for a in release["assets"] if a["name"].endswith(".zip")), None)
-        if not asset:
-            if interface_crate_version == "latest":
-                raise Exception("No zip asset found in the latest release.")
-            else:
-                raise Exception(f"No zip asset found in release {interface_crate_version}. Please check that the version exists and has a zip asset.")
-
-        print(f"⬇️ Downloading: {asset['name']}")
-        zip_response = requests.get(asset["browser_download_url"], headers=headers)
-        zip_response.raise_for_status()
-
-        with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
-            z.extractall(download_dir)  # Extracts to current working directory  print(f"✅ Extracted to {download_dir}")
-
-    except requests.exceptions.HTTPError as e:
-        if hasattr(e, 'response') and e.response.status_code == 404:
-            if interface_crate_version == "latest":
-                raise Exception("Latest release not found. The repository may not have any releases.")
-            else:
-                raise Exception(f"Release {interface_crate_version} not found. Please check that the version exists.")
+        # Original logic for downloading from GitHub
+        # Determine API URL based on version
+        if interface_crate_version == "latest":
+            api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+            print("📦 Fetching latest interface.crate release...")
         else:
-            raise Exception(f"HTTP error occurred: {e}")
-    except Exception as e:
-        if "Failed to download and extract interface.crate" not in str(e):
-            raise Exception(f"Failed to download and extract interface.crate: {e}")
-        else:
-            raise e
+            api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{interface_crate_version}"
+            print(f"📦 Fetching interface.crate release: {interface_crate_version}...")
+
+        token_path = Path("token.txt")
+        token = token_path.read_text().strip() if token_path.exists() else None
+
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "CoastSat-ShorelinePublication"
+        }
+        if token:
+            headers["Authorization"] = f"token {token}"
+        
+        try:
+            response = requests.get(api_url, headers=headers)
+            response.raise_for_status()
+            release = response.json()
+
+            asset = next((a for a in release["assets"] if a["name"].endswith(".zip")), None)
+            if not asset:
+                if interface_crate_version == "latest":
+                    raise Exception("No zip asset found in the latest release.")
+                else:
+                    raise Exception(f"No zip asset found in release {interface_crate_version}. Please check that the version exists and has a zip asset.")
+
+            print(f"⬇️ Downloading: {asset['name']}")
+            zip_response = requests.get(asset["browser_download_url"], headers=headers)
+            zip_response.raise_for_status()
+
+            with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
+                z.extractall(download_dir)  # Extracts to current working directory  print(f"✅ Extracted to {download_dir}")
+
+        except requests.exceptions.HTTPError as e:
+            if hasattr(e, 'response') and e.response.status_code == 404:
+                if interface_crate_version == "latest":
+                    raise Exception("Latest release not found. The repository may not have any releases.")
+                else:
+                    raise Exception(f"Release {interface_crate_version} not found. Please check that the version exists.")
+            else:
+                raise Exception(f"HTTP error occurred: {e}")
+        except Exception as e:
+            if "Failed to download and extract interface.crate" not in str(e):
+                raise Exception(f"Failed to download and extract interface.crate: {e}")
+            else:
+                raise e
 
     if not os.path.isdir(download_dir):
         raise Exception(f"{download_dir} directory is missing after extraction.")
