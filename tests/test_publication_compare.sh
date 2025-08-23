@@ -61,16 +61,48 @@ DESCRIPTION:
 EOF
 }
 
+sort_versions() {
+    local versions="$1"
+    
+    # Separate historical and regular versions
+    local historical_versions=""
+    local regular_versions=""
+    
+    while IFS= read -r version; do
+        if [[ "$version" =~ historical-interface\.crate-[^-]+-([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+            # Extract date and add to historical versions with date prefix for sorting
+            local date_part="${BASH_REMATCH[1]}"
+            historical_versions+="${date_part}|${version}"$'\n'
+        else
+            regular_versions+="${version}"$'\n'
+        fi
+    done <<< "$versions"
+    
+    # Sort historical versions by date (chronological order)
+    local sorted_historical=""
+    if [ -n "$historical_versions" ]; then
+        sorted_historical=$(echo "$historical_versions" | grep -v '^$' | sort | cut -d'|' -f2)
+    fi
+    
+    # Combine: historical first, then regular
+    if [ -n "$sorted_historical" ]; then
+        echo "$sorted_historical"
+    fi
+    if [ -n "$regular_versions" ]; then
+        echo "$regular_versions" | grep -v '^$'
+    fi
+}
+
 fetch_available_versions() {
     echo -e "${BLUE}📡 Fetching available interface.crate versions from GitHub...${NC}" >&2
     
     # First try to fetch from the interface.crate repository
     local releases_json
-    if releases_json=$(curl -s "https://api.github.com/repos/GusEllerm/CoastSat-interface.crate/releases?per_page=15" 2>/dev/null); then
+    if releases_json=$(curl -s "https://api.github.com/repos/GusEllerm/CoastSat-interface.crate/releases?per_page=50" 2>/dev/null); then
         local versions
-        if versions=$(echo "$releases_json" | grep -o '"tag_name": *"[^"]*"' | sed 's/"tag_name": *"\([^"]*\)"/\1/' | head -10 2>/dev/null); then
+        if versions=$(echo "$releases_json" | grep -o '"tag_name": *"[^"]*"' | sed 's/"tag_name": *"\([^"]*\)"/\1/' | head -30 2>/dev/null); then
             if [ -n "$versions" ]; then
-                echo "$versions"
+                sort_versions "$versions"
                 return
             fi
         fi
@@ -78,12 +110,12 @@ fetch_available_versions() {
     
     echo -e "${YELLOW}⚠️  Could not fetch from interface.crate repository, trying main CoastSat repository...${NC}" >&2
     
-    # Fallback to main CoastSat repository
-    if releases_json=$(curl -s "https://api.github.com/repos/kvos/CoastSat/releases?per_page=15" 2>/dev/null); then
+        # Fallback to main CoastSat repository
+    if releases_json=$(curl -s "https://api.github.com/repos/kvos/CoastSat/releases?per_page=50" 2>/dev/null); then
         local versions
-        if versions=$(echo "$releases_json" | grep -o '"tag_name": *"[^"]*"' | sed 's/"tag_name": *"\([^"]*\)"/\1/' | head -10 2>/dev/null); then
+        if versions=$(echo "$releases_json" | grep -o '"tag_name": *"[^"]*"' | sed 's/"tag_name": *"\([^"]*\)"/\1/' | head -30 2>/dev/null); then
             if [ -n "$versions" ]; then
-                echo "$versions"
+                sort_versions "$versions"
                 return
             fi
         fi
