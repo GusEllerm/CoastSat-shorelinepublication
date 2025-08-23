@@ -29,6 +29,8 @@ CUSTOM_SITE_ID=""
 CUSTOM_INTERFACE_CRATE=""
 POPULATE_CRATE=false
 VERBOSE_MODE=false
+FROM_DATE=""
+TO_DATE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -44,17 +46,27 @@ while [[ $# -gt 0 ]]; do
             POPULATE_CRATE=true
             shift
             ;;
+        --from)
+            FROM_DATE="$2"
+            shift 2
+            ;;
+        --to)
+            TO_DATE="$2"
+            shift 2
+            ;;
         -v|--verbose)
             VERBOSE_MODE=true
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [SITE_ID] [--no-open] [-i_crate VERSION] [--populate-crate] [--verbose] [--help]"
+            echo "Usage: $0 [SITE_ID] [--no-open] [-i_crate VERSION] [--populate-crate] [--from DATE] [--to DATE] [--verbose] [--help]"
             echo "  SITE_ID              Custom site ID (default: test_site_TIMESTAMP)"
             echo "  --no-open            Don't automatically open the HTML file"
             echo "  -i_crate VERSION     Use specific interface.crate release version (default: latest)"
             echo "                       Examples: v1.0.0, v2.1.3, latest"
             echo "  --populate-crate     Populate the crate with generated content and update metadata"
+            echo "  --from DATE          Filter data from this date (format: DD-MM-YYYY, e.g., 01-01-1995)"
+            echo "  --to DATE            Filter data to this date (format: DD-MM-YYYY, e.g., 31-12-2020)"
             echo "  -v, --verbose        Show detailed output (default: quiet mode)"
             echo "  --help               Show this help message"
             exit 0
@@ -76,6 +88,14 @@ else
 fi
 
 log_info "📦 Using interface.crate version: ${CUSTOM_INTERFACE_CRATE:-latest}"
+
+if [ -n "$FROM_DATE" ]; then
+    log_info "📅 Filter data from: $FROM_DATE"
+fi
+
+if [ -n "$TO_DATE" ]; then
+    log_info "📅 Filter data to: $TO_DATE"
+fi
 
 if [ "$POPULATE_CRATE" = true ]; then
     log_info "📁 Will populate crate with generated content"
@@ -151,18 +171,33 @@ log_info ""
 log_important "🚀 Running shoreline publication generation..."
 log_info "Using site ID: $CUSTOM_SITE_ID"
 
+# Build command arguments
+PUBLICATION_ARGS=("$CUSTOM_SITE_ID")
+
+if [ "$POPULATE_CRATE" = true ]; then
+    PUBLICATION_ARGS+=("--populate-crate")
+fi
+
+if [ -n "$FROM_DATE" ]; then
+    PUBLICATION_ARGS+=("--from" "$FROM_DATE")
+fi
+
+if [ -n "$TO_DATE" ]; then
+    PUBLICATION_ARGS+=("--to" "$TO_DATE")
+fi
+
 if [ "$POPULATE_CRATE" = true ]; then
     log_info "📁 Running with --populate-crate flag..."
     if [ "$VERBOSE_MODE" = false ]; then
-        python src/publication_logic.py "$CUSTOM_SITE_ID" --populate-crate >/dev/null 2>&1
+        python src/publication_logic.py "${PUBLICATION_ARGS[@]}" >/dev/null 2>&1
     else
-        python src/publication_logic.py "$CUSTOM_SITE_ID" --populate-crate
+        python src/publication_logic.py "${PUBLICATION_ARGS[@]}"
     fi
 else
     if [ "$VERBOSE_MODE" = false ]; then
-        python src/publication_logic.py "$CUSTOM_SITE_ID" >/dev/null 2>&1
+        python src/publication_logic.py "${PUBLICATION_ARGS[@]}" >/dev/null 2>&1
     else
-        python src/publication_logic.py "$CUSTOM_SITE_ID"
+        python src/publication_logic.py "${PUBLICATION_ARGS[@]}"
     fi
 fi
 

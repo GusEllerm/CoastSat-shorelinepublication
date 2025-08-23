@@ -1296,6 +1296,433 @@ No areas of interest (AOIs) were found for the site.
 
 :::
 
+```python exec
+# Check if date limits are set, and if so 
+# create another section for the date limits
+from_date_was_set = "from_date" in locals()
+to_date_was_set = "to_date" in locals()
+
+def human_readable_date(date_str):
+    try:
+        # Try parsing as DD-MM-YYYY
+        dt = datetime.strptime(date_str, "%d-%m-%Y")
+    except Exception:
+        try:
+            # Try parsing as YYYY-MM-DD
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except Exception:
+            return date_str  # Return as is if parsing fails
+    return dt.strftime("%B %d, %Y")
+
+if not from_date_was_set:
+    from_date = "01-01-1984"
+if not to_date_was_set:
+    to_date = datetime.today().strftime("%d-%m-%Y")
+
+date_limit = from_date_was_set or to_date_was_set
+from_date_human = human_readable_date(from_date)
+to_date_human = human_readable_date(to_date)
+
+```
+
+::: if date_limit
+
+## Time Delimited Analysis
+### From `from_date_human`{python exec} to `to_date_human`{python exec}
+
+```python exec
+# Save original (full dataset) statistics for comparison
+original_num_transects = len(site_primary_data)
+original_avg_trend = get_summary_value("trend", "mean", 0)
+original_min_trend = get_summary_value("trend", "min", 0)  
+original_max_trend = get_summary_value("trend", "max", 0)
+original_avg_r2 = get_summary_value("r2_score", "mean", 0)
+original_avg_rmse = get_summary_value("rmse", "mean", 0)
+
+# Format original statistics for display
+original_avg_trend_formatted = f"{original_avg_trend:.2f}" if original_avg_trend != "N/A" else "N/A"
+original_min_trend_formatted = f"{original_min_trend:.2f}" if original_min_trend != "N/A" else "N/A"
+original_max_trend_formatted = f"{original_max_trend:.2f}" if original_max_trend != "N/A" else "N/A"
+original_avg_r2_formatted = f"{original_avg_r2:.2f}" if original_avg_r2 != "N/A" else "N/A"
+original_avg_rmse_formatted = f"{original_avg_rmse:.2f}" if original_avg_rmse != "N/A" else "N/A"
+
+# Filter data by date range
+if not site_time_series_df.empty:
+    # Set variables for original data
+    original_data_rows = site_time_series_df.shape[0]
+    original_data_cols = site_time_series_df.shape[1]
+    
+    # Convert dates to datetime
+    site_time_series_df_filtered = site_time_series_df.copy()
+    site_time_series_df_filtered['dates'] = pd.to_datetime(site_time_series_df_filtered['dates'], utc=True)
+    
+    # Parse date limits (make them timezone-aware to match the data)
+    from_date_dt = pd.to_datetime(from_date, format="%d-%m-%Y").tz_localize('UTC')
+    to_date_dt = pd.to_datetime(to_date, format="%d-%m-%Y").tz_localize('UTC')
+    
+    # Apply date filter
+    date_mask = (site_time_series_df_filtered['dates'] >= from_date_dt) & (site_time_series_df_filtered['dates'] <= to_date_dt)
+    site_time_series_df_filtered = site_time_series_df_filtered[date_mask]
+    
+    # Set variables for filtered data
+    filtered_data_rows = site_time_series_df_filtered.shape[0]
+    filtered_data_cols = site_time_series_df_filtered.shape[1]
+    
+    if len(site_time_series_df_filtered) > 0:
+        filtered_date_start = site_time_series_df_filtered['dates'].min().strftime('%B %Y')
+        filtered_date_end = site_time_series_df_filtered['dates'].max().strftime('%B %Y')
+        
+        # Get transect columns (exclude 'dates' and any other metadata columns)
+        transect_columns = [col for col in site_time_series_df_filtered.columns if col not in ['dates', 'satname', 'Unnamed: 0']]
+        num_transects_total = len(transect_columns)
+        
+        def calculate_time_bounded_trends(df, transect_cols):
+            """
+            Calculate linear regression trends for time-bounded data.
+            Replicates the approach from CoastSat/linear_models.ipynb but simplified for one site.
+            """
+            # Convert dates to years since start (following CoastSat methodology)
+            df_analysis = df.copy()
+            df_analysis['years_since_start'] = (df_analysis['dates'] - df_analysis['dates'].min()).dt.days / 365.25
+            
+            trends = []
+            for transect_id in transect_cols:
+                # Get non-null data for this transect
+                transect_data = df_analysis[['years_since_start', transect_id]].dropna()
+                
+                if len(transect_data) < 3:  # Need minimum 3 points for meaningful regression
+                    continue
+                    
+                # Prepare data for sklearn
+                X = transect_data['years_since_start'].values.reshape(-1, 1)
+                y = transect_data[transect_id].values
+                
+                # Fit linear model
+                from sklearn.linear_model import LinearRegression
+                from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+                
+                linear_model = LinearRegression().fit(X, y)
+                y_pred = linear_model.predict(X)
+                
+                # Calculate metrics (following CoastSat structure)
+                trend_data = {
+                    'transect_id': transect_id,
+                    'trend_time_bounded': linear_model.coef_[0],  # m/year
+                    'intercept_time_bounded': linear_model.intercept_,
+                    'n_points_time_bounded': len(df_analysis[transect_id]),  # Total points in period
+                    'n_points_nonan_time_bounded': len(transect_data),  # Valid points used
+                    'r2_score_time_bounded': r2_score(y, y_pred),
+                    'mae_time_bounded': mean_absolute_error(y, y_pred),
+                    'mse_time_bounded': mean_squared_error(y, y_pred),
+                    'rmse_time_bounded': mean_squared_error(y, y_pred) ** 0.5,
+                    'date_range_start': df_analysis['dates'].min().strftime('%Y-%m-%d'),
+                    'date_range_end': df_analysis['dates'].max().strftime('%Y-%m-%d'),
+                    'time_period_years': (df_analysis['dates'].max() - df_analysis['dates'].min()).days / 365.25
+                }
+                trends.append(trend_data)
+                
+            return pd.DataFrame(trends)
+        
+        # Calculate time-bounded trends
+        time_bounded_trends = calculate_time_bounded_trends(site_time_series_df_filtered, transect_columns)
+        
+        if len(time_bounded_trends) > 0:
+            # Set variables for use in prose (formatted for presentation)
+            num_transects_analyzed = len(time_bounded_trends)
+            avg_trend_time_bounded = f"{time_bounded_trends['trend_time_bounded'].mean():.2f}"
+            min_trend_time_bounded = f"{time_bounded_trends['trend_time_bounded'].min():.2f}"
+            max_trend_time_bounded = f"{time_bounded_trends['trend_time_bounded'].max():.2f}"
+            avg_r2_time_bounded = f"{time_bounded_trends['r2_score_time_bounded'].mean():.2f}"
+            total_observations_period = int(site_time_series_df_filtered[transect_columns].count().sum())
+            avg_data_points = f"{time_bounded_trends['n_points_nonan_time_bounded'].mean():.1f}"
+            time_period_years = f"{time_bounded_trends['time_period_years'].iloc[0]:.1f}"  # Same for all transects
+            
+            # Calculate comparison metrics
+            if original_avg_trend_formatted != "N/A" and float(original_avg_trend_formatted) != 0:
+                original_val = float(original_avg_trend_formatted)
+                time_bounded_val = float(avg_trend_time_bounded)
+                
+                # Use a more reasonable percentage calculation for small values
+                if abs(original_val) < 0.05:  # For very small trends, show absolute change instead
+                    magnitude_change = abs(time_bounded_val) - abs(original_val)
+                    if magnitude_change > 0:
+                        trend_change_formatted = f"{magnitude_change:.2f} m/year increase in magnitude"
+                    else:
+                        trend_change_formatted = f"{abs(magnitude_change):.2f} m/year decrease in magnitude"
+                else:
+                    trend_change_percent = ((time_bounded_val - original_val) / abs(original_val) * 100)
+                    trend_change_direction = "increase" if trend_change_percent > 0 else "decrease"
+                    trend_change_formatted = f"{abs(trend_change_percent):.1f}% {trend_change_direction}"
+            else:
+                trend_change_formatted = "significant change"
+            
+            if original_avg_r2_formatted != "N/A":
+                r2_comparison = "higher" if float(avg_r2_time_bounded) > float(original_avg_r2_formatted) else "lower"
+                r2_reliability = "more" if float(avg_r2_time_bounded) > float(original_avg_r2_formatted) else "less"
+                r2_description = f"This suggests the time-bounded period shows {r2_comparison} model reliability, indicating {r2_reliability} consistent shoreline behavior during the specified timeframe."
+            else:
+                r2_description = "The model quality metrics provide insights into the consistency of shoreline behavior during the specified timeframe."
+            
+            # Update the existing site_primary_data with time-bounded metrics
+            # This follows the approach from CoastSat/linear_models.ipynb
+            time_bounded_trends_indexed = time_bounded_trends.set_index('transect_id')
+            
+            # Create a mapping from transect_id to the DataFrame index for site_primary_data
+            site_primary_data_copy = site_primary_data.copy()
+            
+            # Add time-bounded metrics to transects that have both geometry data and time series data
+            for idx, row in site_primary_data_copy.iterrows():
+                transect_id = row['id']
+                if transect_id in time_bounded_trends_indexed.index:
+                    # Add all the time-bounded metrics
+                    for col in time_bounded_trends_indexed.columns:
+                        if col != 'transect_id':  # Skip the transect_id column since it's now the index
+                            site_primary_data_copy.at[idx, col] = time_bounded_trends_indexed.loc[transect_id, col]
+            
+            # Store the updated data for use in further analysis
+            site_primary_data_with_time_bounded = site_primary_data_copy
+            time_bounded_analysis_available = True
+            
+        else:
+            # Set variables for failed analysis case
+            num_transects_analyzed = 0
+            time_bounded_analysis_available = False
+            site_primary_data_with_time_bounded = site_primary_data.copy()
+            
+    else:
+        # Set variables for no data in range case
+        num_transects_analyzed = 0
+        time_bounded_analysis_available = False
+        site_primary_data_with_time_bounded = site_primary_data.copy()
+        
+else:
+    # Set variables for no time series data case  
+    num_transects_analyzed = 0
+    time_bounded_analysis_available = False
+    site_time_series_df_filtered = pd.DataFrame()
+    transect_columns = []
+    site_primary_data_with_time_bounded = site_primary_data.copy()
+```
+
+### Data Processing
+
+The analysis began with the complete satellite-derived shoreline dataset containing `original_data_rows`{python exec} temporal observations across `num_transects_total`{python exec} shore-normal transects. After applying the specified date range filter from `from_date_human`{python exec} to `to_date_human`{python exec}, the dataset was reduced to `filtered_data_rows`{python exec} observations spanning from `filtered_date_start`{python exec} to `filtered_date_end`{python exec}.
+
+::: if time_bounded_analysis_available
+
+### Analysis Results
+
+We started with the full satellite-derived shoreline dataset: `original_data_rows`{python exec} time-stamped observations across `num_transects_total`{python exec} shore-normal transects. 
+Limiting the window from `from_date_human`{python exec} to `to_date_human`{python exec} left `filtered_data_rows`{python exec} observations. 
+These observations span `time_period_years`{python exec} years, with an average of `avg_data_points`{python exec} data points per transect.
+
+The time-bounded analysis reveals an average shoreline change rate of **`avg_trend_time_bounded`{python exec} meters per year** across all analyzed transects. 
+Individual transect trends ranged from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year.
+The analysis processed a total of `total_observations_period`{python exec} valid shoreline observations across all transects during the specified period.
+
+The quality of the linear regression models is reflected in an average R² value of `avg_r2_time_bounded`{python exec}, representing the proportion of variance in shoreline position explained by calculated trend. 
+
+### Comparison
+
+The original analysis, based on the complete temporal record, included `original_num_transects`{python exec} transects with an average trend of **`original_avg_trend_formatted`{python exec} meters per year** (ranging from `original_min_trend_formatted`{python exec} to `original_max_trend_formatted`{python exec} meters per year).
+
+The time-bounded analysis shows `num_transects_analyzed`{python exec} transects with an average trend of **`avg_trend_time_bounded`{python exec} meters per year** (ranging from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year). This represents a **`trend_change_formatted`{python exec}** in average trend magnitude compared to the historical baseline.
+
+        Model quality also differs between approaches: the time-bounded analysis achieved an average R² of `avg_r2_time_bounded`{python exec} compared to `original_avg_r2_formatted`{python exec} for the full dataset. 
+        `r2_description`{python exec}
+
+        ### Time-Bounded Data Visualization
+
+        ```python exec
+        # Create a modified plotting function for time-bounded analysis
+        def plot_time_bounded_analysis(site_time_series_df_full, site_time_series_df_filtered, time_bounded_trends, zone_transects=None):
+            """
+            Create visualization showing both full dataset and time-bounded analysis
+            """
+            if site_time_series_df_filtered.empty or time_bounded_trends.empty:
+                print("No data available for time-bounded visualization.")
+                return
+                
+            # Prepare the data
+            df_full = site_time_series_df_full.copy()
+            df_filtered = site_time_series_df_filtered.copy()
+            df_full['dates'] = pd.to_datetime(df_full['dates'])
+            df_filtered['dates'] = pd.to_datetime(df_filtered['dates'])
+            
+            # Get transect columns for analysis
+            if zone_transects:
+                # Use zone transects if available
+                transect_ids = [t['id'] for t in zone_transects]
+                available_transects = [tid for tid in transect_ids if tid in df_full.columns and tid in time_bounded_trends['transect_id'].values]
+            else:
+                # Use all transects from time-bounded analysis
+                available_transects = [tid for tid in time_bounded_trends['transect_id'].values if tid in df_full.columns]
+            
+            if not available_transects:
+                print("No valid transects found for visualization.")
+                return
+                
+            # Limit to first few transects to avoid overcrowding
+            plot_transects = available_transects[:6]  # Show up to 6 transects
+            
+            fig = go.Figure()
+            colors = px.colors.qualitative.Set1
+            
+            # Calculate zone baseline from full data (similar to existing function)
+            all_values = []
+            for tid in plot_transects:
+                if tid in df_full.columns:
+                    values = df_full[tid].dropna()
+                    all_values.extend(values.tolist())
+            
+            if all_values:
+                zone_baseline = np.mean(all_values)
+            else:
+                zone_baseline = 0
+            
+            # Plot full dataset for each transect (lighter lines)
+            for i, tid in enumerate(plot_transects):
+                if tid in df_full.columns:
+                    data_full = df_full[['dates', tid]].dropna()
+                    if len(data_full) > 0:
+                        fig.add_trace(go.Scatter(
+                            x=data_full['dates'],
+                            y=data_full[tid] - zone_baseline,
+                            mode='lines',
+                            name=f'{tid} (Full)',
+                            opacity=0.3,
+                            line=dict(color=colors[i % len(colors)], width=1),
+                            hovertemplate=f'{tid} (Full): %{{y:.1f}}m<extra></extra>',
+                            legendgroup=f'group{i}',
+                            showlegend=True
+                        ))
+            
+            # Plot time-bounded dataset for each transect (darker lines)
+            for i, tid in enumerate(plot_transects):
+                if tid in df_filtered.columns:
+                    data_filtered = df_filtered[['dates', tid]].dropna()
+                    if len(data_filtered) > 0:
+                        fig.add_trace(go.Scatter(
+                            x=data_filtered['dates'],
+                            y=data_filtered[tid] - zone_baseline,
+                            mode='lines+markers',
+                            name=f'{tid} (Time-bounded)',
+                            opacity=0.8,
+                            line=dict(color=colors[i % len(colors)], width=2),
+                            marker=dict(size=3),
+                            hovertemplate=f'{tid} (Time-bounded): %{{y:.1f}}m<extra></extra>',
+                            legendgroup=f'group{i}',
+                            showlegend=True
+                        ))
+                        
+                        # Add trend line for time-bounded period
+                        trend_data = time_bounded_trends[time_bounded_trends['transect_id'] == tid]
+                        if len(trend_data) > 0:
+                            trend_row = trend_data.iloc[0]
+                            start_date = pd.to_datetime(trend_row['date_range_start'])
+                            end_date = pd.to_datetime(trend_row['date_range_end'])
+                            
+                            # Calculate trend line
+                            years_since_start = ((data_filtered['dates'] - start_date).dt.days / 365.25)
+                            trend_values = (trend_row['trend_time_bounded'] * years_since_start + 
+                                          trend_row['intercept_time_bounded'] - zone_baseline)
+                            
+                            fig.add_trace(go.Scatter(
+                                x=data_filtered['dates'],
+                                y=trend_values,
+                                mode='lines',
+                                name=f'{tid} Trend ({trend_row["trend_time_bounded"]:.2f} m/yr)',
+                                line=dict(color=colors[i % len(colors)], width=2, dash='dash'),
+                                hovertemplate=f'{tid} Trend: %{{y:.1f}}m<extra></extra>',
+                                legendgroup=f'group{i}',
+                                showlegend=False
+                            ))
+            
+            # Add baseline reference
+            fig.add_hline(
+                y=0,
+                line_dash="dot",
+                line_color="gray",
+                opacity=0.5,
+                annotation_text="Zone Baseline",
+                annotation_position="bottom right"
+            )
+            
+            # Add vertical lines to mark time-bounded period
+            if len(time_bounded_trends) > 0:
+                start_date = pd.to_datetime(time_bounded_trends['date_range_start'].iloc[0])
+                end_date = pd.to_datetime(time_bounded_trends['date_range_end'].iloc[0])
+                
+                fig.add_vline(
+                    x=start_date,
+                    line_dash="solid",
+                    line_color="red",
+                    opacity=0.7,
+                    annotation_text=f"Analysis Start: {start_date.strftime('%Y-%m')}",
+                    annotation_position="top"
+                )
+                
+                fig.add_vline(
+                    x=end_date,
+                    line_dash="solid", 
+                    line_color="red",
+                    opacity=0.7,
+                    annotation_text=f"Analysis End: {end_date.strftime('%Y-%m')}",
+                    annotation_position="top"
+                )
+            
+            # Layout and styling
+            title_text = f'Time-Bounded Shoreline Analysis<br><sub>Comparison of full dataset vs. {from_date_human} to {to_date_human} period</sub>'
+            fig.update_layout(
+                title=title_text,
+                xaxis_title='Date',
+                yaxis_title='Cross-shore change [m]',
+                hovermode='x unified',
+                width=900,
+                height=500,
+                margin=dict(l=50, r=200, t=80, b=60),
+                font=dict(size=10),
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    font=dict(size=9),
+                    bordercolor="LightGray",
+                    borderwidth=1,
+                    itemsizing='trace'
+                )
+            )
+
+            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
+            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
+
+            fig.show()
+        
+        # Create the visualization if data is available
+        if time_bounded_analysis_available and len(time_bounded_trends) > 0:
+            # Check if we have zone transects for this analysis
+            current_zone_transects = None
+            if 'zone_transects' in locals() and zone_transects:
+                current_zone_transects = zone_transects
+            
+            plot_time_bounded_analysis(
+                site_time_series_df, 
+                site_time_series_df_filtered, 
+                time_bounded_trends,
+                current_zone_transects
+            )
+        ```
+
+        :::: else### Analysis Limitations
+
+Time-bounded analysis could not be performed for this site within the specified date range. This may be due to insufficient satellite observations, data quality constraints, or the selected time period falling outside the available data coverage. The standard analysis using the full temporal dataset remains available above.
+
+::::
+
+:::
+
 ### Narrative Generation Configuration
 
 #### Area of Interest Definitions

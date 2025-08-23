@@ -191,7 +191,7 @@ def prepare_temp_directory(template_path, site_id):
 
     return temp_dir, temp_dir_path
 
-def evaluate_shorelinepublication(temp_dir_path):
+def evaluate_shorelinepublication(temp_dir_path, from_date=None, to_date=None):
     smd_files = list(temp_dir_path.glob("*.smd"))
     if not smd_files:
         raise FileNotFoundError("No .smd template file found in temporary directory")
@@ -236,7 +236,16 @@ def evaluate_shorelinepublication(temp_dir_path):
         
         dnf_eval_json = f"{temp_dir_path}/DNF_eval.json"
         print(f"Rendering {dnf_json} to {dnf_eval_json}")
-        subprocess.run(["stencila", "render", dnf_json, dnf_eval_json, "--force-all", "--pretty", "--", f"--dir={temp_dir_path}"], check=True)
+        
+        # Build render command with optional date parameters
+        render_cmd = ["stencila", "render", dnf_json, dnf_eval_json, "--force-all", "--pretty", "--", f"--dir={temp_dir_path}"]
+        
+        if from_date:
+            render_cmd.append(f"--from_date={from_date}")
+        if to_date:
+            render_cmd.append(f"--to_date={to_date}")
+            
+        subprocess.run(render_cmd, check=True)
 
         final_path = f"{temp_dir_path}/shorelinepublication.html"
         print(f"Converting {dnf_eval_json} to {final_path}")
@@ -396,6 +405,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Output file path for the generated shoreline publication HTML.", default="shorelinepublication.html")
     parser.add_argument("--populate-crate", action="store_true", 
                        help="Populate the publication crate with generated content and update metadata")
+    parser.add_argument("--from", dest="from_date", help="Filter data from this date (format: DD-MM-YYYY, e.g., 01-01-1995)")
+    parser.add_argument("--to", dest="to_date", help="Filter data to this date (format: DD-MM-YYYY, e.g., 31-12-2020)")
     args = parser.parse_args()
 
     print("🔍 Getting template path...")
@@ -421,7 +432,7 @@ if __name__ == "__main__":
     print(f"🔍 Preparing publication for site ID: {args.site_id}")
 
     temp_dir_obj, temp_dir_path = prepare_temp_directory(template_path, args.site_id)
-    result = evaluate_shorelinepublication(temp_dir_path)
+    result = evaluate_shorelinepublication(temp_dir_path, args.from_date, args.to_date)
     
     if result and result[0]:  # Check if we got a valid result and HTML path
         publication_path, dnf_eval_path = result
