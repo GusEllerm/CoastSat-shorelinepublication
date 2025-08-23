@@ -1543,7 +1543,7 @@ The analysis began with the complete satellite-derived shoreline dataset contain
 ::: if time_bounded_analysis_available
 
 These observations span `time_period_years`{python exec} years, with an average of `avg_data_points`{python exec} data points per transect.
-The time-bounded analysis reveals an average shoreline change rate of **`avg_trend_time_bounded`{python exec} meters per year** across all analyzed transects. 
+The time-bounded analysis reveals an average shoreline change rate of **`avg_trend_time_bounded`{python exec} meters per year** across all analysed transects. 
 Individual transect trends ranged from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year.
 The analysis processed a total of `total_observations_period`{python exec} valid shoreline observations across all transects during the specified period.
 
@@ -1562,7 +1562,7 @@ time_bounded_map
 ### Comparison
 
 The original analysis, based on the complete temporal record, included `original_num_transects`{python exec} transects with an average trend of **`original_avg_trend_formatted`{python exec} meters per year** (ranging from `original_min_trend_formatted`{python exec} to `original_max_trend_formatted`{python exec} meters per year).
-The time-bounded analysis shows `num_transects_analyzed`{python exec} transects with an average trend of **`avg_trend_time_bounded`{python exec} meters per year** (ranging from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year). This represents a **`trend_change_formatted`{python exec}** in average trend magnitude compared to the historical baseline.
+The time-bounded analysis shows `num_transects_analyzed`{python exec} transects with an average trend of **`avg_trend_time_bounded`{python exec} meters per year** (ranging from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year). This represents a **`trend_change_formatted`{python exec}** in average trend compared to the historical baseline.
 Model quality also differs between approaches: the time-bounded analysis achieved an average R² of `avg_r2_time_bounded`{python exec} compared to `original_avg_r2_formatted`{python exec} for the full dataset. 
 `r2_description`{python exec}
 
@@ -1766,12 +1766,6 @@ No distinct zones were identified in the time-bounded analysis. This may indicat
 Time-bounded analysis could not be performed for this site within the specified date range. This may be due to insufficient satellite observations, data quality constraints, or the selected time period falling outside the available data coverage. The standard analysis using the full temporal dataset remains available above.
 
 ::::
-
-::: else 
-
-Sardinia time bounded analysis not currently supported
-
-:::
 
 ### Narrative Generation Configuration
 
