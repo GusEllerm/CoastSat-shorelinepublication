@@ -126,7 +126,6 @@ def get_commit_date(github_commit_url):
         return None
 
 # Extract version information
-print(interface_crate.mainEntity)
 coastsat_version = interface_crate.mainEntity.get("version") if interface_crate else None
 coastsat_commit_date = get_commit_date(coastsat_version)
 interface_crate_version = interface_crate.mainEntity.get("url") if interface_crate else None
@@ -1160,10 +1159,8 @@ plot_zone_transect_timeseries(site_time_series_df, zone_transects, zone_metrics)
 
 :::::: elif zone_metrics.zone_type == "High Uncertainty"
 
-The figures below show the R² and RMSE metrics for the transects in this zone, which indicate high uncertainty in trend analysis.
-The R² score (top plot) measures the proportion of variance in the data explained by the model, with values closer to 1 indicating better fit.
-The sporadic nature of the R² values could be related to seasonal changes, data gaps, or other factors affecting the transects in this zone.
-The RMSE (bottom plot) quantifies the average deviation of observed values from the model predictions, with lower values indicating better accuracy.
+The plots summarize model performance for transects in this zone over the selected time window: the top panel shows R²—the proportion of variance explained, where values closer to 1 indicate a better fit—and the bottom panel shows RMSE, the average prediction error (lower is better). 
+The noticeable spread in R², likely influenced by seasonal cycles, data gaps, or other site-specific effects, together with the RMSE values points to substantial uncertainty in trend estimates during this period.
 
 ```python exec
 # Visualise the R² and RMSE metrics for the transects in this zone
@@ -1194,10 +1191,8 @@ plot_zone_transect_timeseries(site_time_series_df, zone_transects, zone_metrics)
 
 :::::: elif zone_metrics.zone_type == "High Uncertainty"
 
-The figures below show the R² and RMSE metrics for the transects in this zone, which indicate high uncertainty in trend analysis.
-The R² score (top plot) measures the proportion of variance in the data explained by the model, with values closer to 1 indicating better fit.
-The sporadic nature of the R² values could be related to seasonal changes, data gaps, or other factors affecting the transects in this zone.
-The RMSE (bottom plot) quantifies the average deviation of observed values from the model predictions, with lower values indicating better accuracy.
+The plots summarize model performance for transects in this zone over the selected time window: the top panel shows R²—the proportion of variance explained, where values closer to 1 indicate a better fit—and the bottom panel shows RMSE, the average prediction error (lower is better). 
+The noticeable spread in R², likely influenced by seasonal cycles, data gaps, or other site-specific effects, together with the RMSE values points to substantial uncertainty in trend estimates during this period.
 
 
 ```python exec
@@ -1442,17 +1437,23 @@ if not site_time_series_df.empty:
                 original_val = float(original_avg_trend_formatted)
                 time_bounded_val = float(avg_trend_time_bounded)
                 
-                # Use a more reasonable percentage calculation for small values
-                if abs(original_val) < 0.05:  # For very small trends, show absolute change instead
-                    magnitude_change = abs(time_bounded_val) - abs(original_val)
-                    if magnitude_change > 0:
-                        trend_change_formatted = f"{magnitude_change:.2f} m/year increase in magnitude"
+                # Calculate absolute difference in trend magnitude
+                absolute_diff = abs(time_bounded_val) - abs(original_val)
+                
+                # Use absolute change approach for more meaningful comparisons
+                if abs(absolute_diff) >= 0.1:  # Significant change threshold
+                    if absolute_diff > 0:
+                        trend_change_formatted = f"{absolute_diff:.2f} m/year increase in magnitude"
                     else:
-                        trend_change_formatted = f"{abs(magnitude_change):.2f} m/year decrease in magnitude"
+                        trend_change_formatted = f"{abs(absolute_diff):.2f} m/year decrease in magnitude"
+                elif abs(absolute_diff) >= 0.05:  # Moderate change threshold
+                    if absolute_diff > 0:
+                        trend_change_formatted = f"{absolute_diff:.2f} m/year increase in magnitude"
+                    else:
+                        trend_change_formatted = f"{abs(absolute_diff):.2f} m/year decrease in magnitude"
                 else:
-                    trend_change_percent = ((time_bounded_val - original_val) / abs(original_val) * 100)
-                    trend_change_direction = "increase" if trend_change_percent > 0 else "decrease"
-                    trend_change_formatted = f"{abs(trend_change_percent):.1f}% {trend_change_direction}"
+                    # For very small changes, describe as minimal difference
+                    trend_change_formatted = f"minimal change ({abs(absolute_diff):.3f} m/year difference in magnitude)"
             else:
                 trend_change_formatted = "significant change"
             
@@ -1537,16 +1538,11 @@ else:
 
 ### Data Processing
 
-The analysis began with the complete satellite-derived shoreline dataset containing `original_data_rows`{python exec} temporal observations across `num_transects_total`{python exec} shore-normal transects. After applying the specified date range filter from `from_date_human`{python exec} to `to_date_human`{python exec}, the dataset was reduced to `filtered_data_rows`{python exec} observations spanning from `filtered_date_start`{python exec} to `filtered_date_end`{python exec}.
+The analysis began with the complete satellite-derived shoreline dataset containing `original_data_rows`{python exec} temporal observations across `num_transects_total`{python exec} shore-normal transects. After applying the specified date range filter from `from_date_human`{python exec} to `to_date_human`{python exec}, the dataset was reduced to `filtered_data_rows`{python exec} observations.
 
 ::: if time_bounded_analysis_available
 
-### Analysis Results
-
-We started with the full satellite-derived shoreline dataset: `original_data_rows`{python exec} time-stamped observations across `num_transects_total`{python exec} shore-normal transects. 
-Limiting the window from `from_date_human`{python exec} to `to_date_human`{python exec} left `filtered_data_rows`{python exec} observations. 
 These observations span `time_period_years`{python exec} years, with an average of `avg_data_points`{python exec} data points per transect.
-
 The time-bounded analysis reveals an average shoreline change rate of **`avg_trend_time_bounded`{python exec} meters per year** across all analyzed transects. 
 Individual transect trends ranged from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year.
 The analysis processed a total of `total_observations_period`{python exec} valid shoreline observations across all transects during the specified period.
@@ -1566,12 +1562,202 @@ time_bounded_map
 ### Comparison
 
 The original analysis, based on the complete temporal record, included `original_num_transects`{python exec} transects with an average trend of **`original_avg_trend_formatted`{python exec} meters per year** (ranging from `original_min_trend_formatted`{python exec} to `original_max_trend_formatted`{python exec} meters per year).
-
 The time-bounded analysis shows `num_transects_analyzed`{python exec} transects with an average trend of **`avg_trend_time_bounded`{python exec} meters per year** (ranging from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year). This represents a **`trend_change_formatted`{python exec}** in average trend magnitude compared to the historical baseline.
-
 Model quality also differs between approaches: the time-bounded analysis achieved an average R² of `avg_r2_time_bounded`{python exec} compared to `original_avg_r2_formatted`{python exec} for the full dataset. 
 `r2_description`{python exec}
 
+### Time-Bounded Zone Analysis
+
+```python exec
+# Run narrative zoning on the time-bounded transect data
+min_zone_length_time_bounded = max(3, int(len(site_primary_data_with_time_bounded) / 10))
+
+# Initialize default values for time-bounded analysis
+aoi_zones_time_bounded = []
+all_transects_time_bounded = []
+
+try:
+    # We need to save the time-bounded data to a temporary file since run_narrative_zoning expects a file path
+    import tempfile
+    import geopandas as gpd
+    
+    # Create temporary file for time-bounded data
+    temp_file = tempfile.NamedTemporaryFile(suffix='.geojson', delete=False)
+    temp_file_path = temp_file.name
+    temp_file.close()
+    
+    # Save the time-bounded data to the temporary file
+    # Use the cleaned-up data with renamed columns for consistency with zone definitions
+    if 'site_primary_data_for_map' in locals() and time_bounded_analysis_available:
+        # Use the properly renamed time-bounded data for narrative zoning
+        site_primary_data_for_map.to_file(temp_file_path, driver='GeoJSON')
+    else:
+        # Fallback to original data if time-bounded analysis failed
+        print(f"Fallback: Using original data with {len(site_primary_data_with_time_bounded)} transects for zone analysis")
+        site_primary_data_with_time_bounded.to_file(temp_file_path, driver='GeoJSON')
+    
+    # Run narrative zoning on time-bounded data
+    aois_time_bounded = run_narrative_zoning(
+        site_id, 
+        temp_file_path, 
+        min_zone_length=min_zone_length_time_bounded, 
+        zone_definitions=aoi_definitions, 
+        sort_by_priority=True
+    )
+    aoi_zones_time_bounded = aois_time_bounded.get('zones', [])
+    all_transects_time_bounded = aois_time_bounded.get('transects', [])
+    
+    # Clean up temporary file
+    import os
+    os.unlink(temp_file_path)
+    
+    time_bounded_zoning_available = len(aoi_zones_time_bounded) > 0
+    
+except Exception as e:
+    print(f"Warning: Time-bounded narrative zoning failed for site {site_id}: {e}")
+    time_bounded_zoning_available = False
+    aoi_zones_time_bounded = []
+    all_transects_time_bounded = []
+```
+
+::: if time_bounded_zoning_available
+
+Based on the time-bounded analysis results, the site has been divided into **`len(aoi_zones_time_bounded)`{python exec}** zones with a minimum of **`min_zone_length_time_bounded`{python exec}** transects each. These zones reflect the shoreline behavior characteristics during the specified time period and may differ from the historical zone patterns.
+
+::::: for zone_tb in aoi_zones_time_bounded
+
+```python exec
+def extract_zone_metrics_time_bounded(zone):
+    def get(key, default=0, round_to=None):
+        val = zone.get(key, default)
+        if val is None:
+            return "N/A"
+        return round(val, round_to) if round_to is not None else val
+
+    metrics = {
+        "zone_type": zone.get("zone_type", "Unknown"),
+        "length_km": round(abs(zone.get("length_meters", 0)) / 1000, 2),
+        "mean_trend": get("mean_trend", 0, 2),
+        "avg_beach_slope": get("avg_beach_slope", 0, 4),
+        "r2_score": get("avg_r2", 0, 4),
+        "avg_rmse": get("avg_rmse", None, 2),
+        "avg_mae": get("avg_mae", None, 2),
+        "avg_cil": get("avg_cil", None, 4),
+        "avg_ciu": get("avg_ciu", None, 4),
+        "avg_orientation": get("avg_orientation", None, 1),
+        "narrative_description": zone.get("narrative_description", "No description available."),
+        "transect_count": zone.get("transect_count", 0),
+        "transect_ids": zone.get("transect_ids", []),
+        "start_transect_id": zone.get("start_transect_id", "N/A"),
+        "end_transect_id": zone.get("end_transect_id", "N/A"),
+        "zone_name": zone.get("zone_name", "Unnamed Zone"),
+    }
+
+    return SimpleNamespace(**metrics)
+
+zone_metrics_tb = extract_zone_metrics_time_bounded(zone_tb)
+```
+
+#### Time-Bounded Zone: `zone_metrics_tb.zone_type`{python exec}
+
+This zone spans `zone_metrics_tb.length_km`{python exec} km and contains `zone_metrics_tb.transect_count`{python exec} transects during the time-bounded period (`from_date_human`{python exec} to `to_date_human`{python exec}), from `zone_metrics_tb.start_transect_id`{python exec} to `zone_metrics_tb.end_transect_id`{python exec}.
+`zone_metrics_tb.narrative_description`{python exec}
+
+```python exec 
+def get_zone_transects_time_bounded(zone_metrics, all_transects):
+    """Helper function to extract transects for a specific time-bounded zone"""
+    id_set = set(zone_metrics.transect_ids)
+    results = []
+    for tid, t in all_transects.items():
+        if tid in id_set:
+            t_copy = dict(t)
+            t_copy["id"] = tid
+            results.append(t_copy)
+    return results
+
+# Usage for time-bounded zone-specific map
+zone_transects_tb = get_zone_transects_time_bounded(zone_metrics_tb, all_transects_time_bounded) 
+m_tb = create_transect_map(zone_transects_tb, map_title=f"Time-Bounded {zone_metrics_tb.zone_name} ({from_date_human} to {to_date_human})", use_gdf=False)
+m_tb
+```
+
+::::::: if "nzd" in site_id or "ber" in site_id
+
+<!--- conditionals for plotly graphs for time-bounded zones --->
+:::::::: if (zone_metrics_tb.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+The figure below shows the time series of shoreline position for the transects in this time-bounded zone, filtered to the specified date range.
+
+```python exec
+# Plot the transect time series for this time-bounded zone using filtered data
+plot_zone_transect_timeseries(site_time_series_df_filtered, zone_transects_tb, zone_metrics_tb)
+```
+
+:::::::: elif zone_metrics_tb.zone_type == "High Uncertainty"
+
+The plots summarize model performance for transects in this zone over the selected time window: the top panel shows R²—the proportion of variance explained, where values closer to 1 indicate a better fit—and the bottom panel shows RMSE, the average prediction error (lower is better). 
+The noticeable spread in R², likely influenced by seasonal cycles, data gaps, or other site-specific effects, together with the RMSE values points to substantial uncertainty in trend estimates during this period.
+
+```python exec
+# Visualise the R² and RMSE metrics for the transects in this time-bounded zone
+plot_zone_uncertainty_metrics(site_time_series_df_filtered, zone_transects_tb, window_size=12)
+```
+
+:::::::: else 
+
+No analysis available for this zone type during the time-bounded period.
+
+::::::::
+<!---- end of graphs for NZD/BER sites ----->
+
+::::::: else
+<!--- below is the conditional for the non-SAR, non-NZD sites -- i.e. pacific rim sites --->
+:::::::: if (zone_metrics_tb.zone_type in ["Moderate Erosion", "Rapid Erosion", "Moderate Accretion", "Rapid Accretion"])
+
+The figure below shows the time series of shoreline position for the transects in this time-bounded zone, filtered to the specified date range.
+
+```python exec
+# Plot the transect time series for this time-bounded zone using filtered data
+plot_zone_transect_timeseries(site_time_series_df_filtered, zone_transects_tb, zone_metrics_tb)
+```
+
+:::::::: elif zone_metrics_tb.zone_type == "High Uncertainty"
+
+The plots summarize model performance for transects in this zone over the selected time window: the top panel shows R²—the proportion of variance explained, where values closer to 1 indicate a better fit—and the bottom panel shows RMSE, the average prediction error (lower is better). 
+The noticeable spread in R², likely influenced by seasonal cycles, data gaps, or other site-specific effects, together with the RMSE values points to substantial uncertainty in trend estimates during this period.
+
+```python exec
+# Visualise the R² and RMSE metrics for the transects in this time-bounded zone
+plot_zone_uncertainty_metrics(site_time_series_df_filtered, zone_transects_tb, window_size=12)
+```
+
+:::::::: else
+
+No analysis available for this zone type during the time-bounded period.
+
+::::::::
+
+:::::::
+
+:::::: table 
+
+Time-Bounded `zone_metrics_tb.zone_name`{python exec} Zone Metrics
+
+| Metric      | Value                              |
+|:-----------:|:----------------------------------:|
+| **Length**      | `zone_metrics_tb.length_km`{python exec} km         |
+| **Mean Trend**  | `zone_metrics_tb.mean_trend`{python exec} m/year    |
+| **Beach Slope** | `zone_metrics_tb.avg_beach_slope`{python exec}      |
+| **R² Score**    | `zone_metrics_tb.r2_score`{python exec}             |
+::::::
+
+:::::
+
+::: else
+
+No distinct zones were identified in the time-bounded analysis. This may indicate that the time-bounded period shows more uniform shoreline behavior compared to the historical baseline, or that insufficient data points prevent reliable zone classification.
+
+:::
 
 :::: else
 

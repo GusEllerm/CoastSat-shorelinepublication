@@ -43,6 +43,7 @@ python src/publication_logic.py aus0001 --populate-crate
 | Deploy to web         | `./scripts/publish_to_docs.sh [SITE_ID]`                      |
 | Create GitHub release | `./scripts/create_publication.sh [SITE_ID]`                   |
 | Compare versions      | `./tests/test_publication_compare.sh [SITE_ID] [VER1] [VER2]` |
+| Time-bounded analysis | `./tests/test_publication_enhanced.sh [SITE_ID] --from [DATE] --to [DATE]` |
 
 ## 💡 Key Options
 
@@ -50,6 +51,36 @@ python src/publication_logic.py aus0001 --populate-crate
 - `--verbose` - Show detailed processing output
 - `--no-open` - Don't auto-open generated HTML
 - `-i_crate [VERSION]` - Use specific interface.crate version
+- `--from [DD-MM-YYYY]` - Start date for time-bounded analysis
+- `--to [DD-MM-YYYY]` - End date for time-bounded analysis
+
+## ⏱️ Time-Bounded Analysis
+
+Generate publications with analysis limited to specific time periods:
+
+```bash
+# Analyze only 2010-2015 period
+./tests/test_publication_enhanced.sh aus0001 --from 01-01-2010 --to 31-12-2015
+
+# Analyze recent years (2020 onwards)
+python src/publication_logic.py aus0001 --from 01-01-2020 --populate-crate
+
+# Compare different time periods
+./tests/test_publication_enhanced.sh aus0001 --from 01-01-2000 --to 31-12-2010
+./tests/test_publication_enhanced.sh aus0001 --from 01-01-2010 --to 31-12-2020
+```
+
+**Features:**
+- **Recalculated Trends**: Linear regression trends recalculated for the specified period
+- **Time-Bounded Zone Analysis**: Narrative zones identified based on time-limited behavior
+- **Comparative Metrics**: Direct comparison with full-dataset analysis
+- **Period-Specific Maps**: Visualizations showing trends for the specified timeframe
+
+**Use Cases:**
+- Storm impact assessment (before/after major events)
+- Decadal change analysis
+- Policy impact evaluation
+- Climate change period studies
 
 ## 🏗️ Project Structure
 
