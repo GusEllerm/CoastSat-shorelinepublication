@@ -1040,7 +1040,7 @@ Zone definitions applied to this site can be found in section `Area of Interest 
 ::: if "nzd" in site_id or "ber" in site_id
 
 ```python exec
-# If the site is a New Zealand site, we access its tidally corrected time series data
+# If the site is a New Zealand or Bermuda site, we access its tidally corrected time series data
 time_series_data_by_site = query_by_link(interface_crate, "exampleOfWork", "#fp-transecttimeseriestidallycorrected-2")
 site_time_series_candidates = [
     e for e in time_series_data_by_site
@@ -1325,7 +1325,7 @@ to_date_human = human_readable_date(to_date)
 
 ```
 
-::: if date_limit
+::: if date_limit and "sar" not in site_id
 
 ## Time Delimited Analysis
 ### From `from_date_human`{python exec} to `to_date_human`{python exec}
@@ -1483,6 +1483,37 @@ if not site_time_series_df.empty:
             site_primary_data_with_time_bounded = site_primary_data_copy
             time_bounded_analysis_available = True
             
+            # Create map with time-bounded transect data
+            # Clean up the data to show only time-bounded metrics in tooltips
+            site_primary_data_for_map = site_primary_data_with_time_bounded.copy()
+            
+            # Define mapping of time-bounded columns to their standard names for the map
+            time_bounded_to_standard = {
+                'trend_time_bounded': 'trend',
+                'r2_score_time_bounded': 'r2_score', 
+                'rmse_time_bounded': 'rmse',
+                'mae_time_bounded': 'mae',
+                'mse_time_bounded': 'mse',
+                'n_points_nonan_time_bounded': 'n_points_nonan',
+                'n_points_time_bounded': 'n_points',
+                'intercept_time_bounded': 'intercept'
+            }
+            
+            # Remove original columns that will be replaced with time-bounded versions
+            columns_to_remove = list(time_bounded_to_standard.values())
+            for col in columns_to_remove:
+                if col in site_primary_data_for_map.columns:
+                    site_primary_data_for_map = site_primary_data_for_map.drop(columns=[col])
+            
+            # Rename time-bounded columns to standard names for the map
+            rename_dict = {}
+            for time_bounded_col, standard_col in time_bounded_to_standard.items():
+                if time_bounded_col in site_primary_data_for_map.columns:
+                    rename_dict[time_bounded_col] = standard_col
+            
+            if rename_dict:
+                site_primary_data_for_map = site_primary_data_for_map.rename(columns=rename_dict)
+            
         else:
             # Set variables for failed analysis case
             num_transects_analyzed = 0
@@ -1522,204 +1553,37 @@ The analysis processed a total of `total_observations_period`{python exec} valid
 
 The quality of the linear regression models is reflected in an average R² value of `avg_r2_time_bounded`{python exec}, representing the proportion of variance in shoreline position explained by calculated trend. 
 
+```python exec
+# Create map showing time-bounded transect trends
+time_bounded_map = create_transect_map(
+    site_primary_data_for_map, 
+    map_title=f"Time-Bounded Analysis ({from_date_human} to {to_date_human}) - {site_id}", 
+    use_gdf=True
+)
+time_bounded_map
+```
+
 ### Comparison
 
 The original analysis, based on the complete temporal record, included `original_num_transects`{python exec} transects with an average trend of **`original_avg_trend_formatted`{python exec} meters per year** (ranging from `original_min_trend_formatted`{python exec} to `original_max_trend_formatted`{python exec} meters per year).
 
 The time-bounded analysis shows `num_transects_analyzed`{python exec} transects with an average trend of **`avg_trend_time_bounded`{python exec} meters per year** (ranging from `min_trend_time_bounded`{python exec} to `max_trend_time_bounded`{python exec} meters per year). This represents a **`trend_change_formatted`{python exec}** in average trend magnitude compared to the historical baseline.
 
-        Model quality also differs between approaches: the time-bounded analysis achieved an average R² of `avg_r2_time_bounded`{python exec} compared to `original_avg_r2_formatted`{python exec} for the full dataset. 
-        `r2_description`{python exec}
+Model quality also differs between approaches: the time-bounded analysis achieved an average R² of `avg_r2_time_bounded`{python exec} compared to `original_avg_r2_formatted`{python exec} for the full dataset. 
+`r2_description`{python exec}
 
-        ### Time-Bounded Data Visualization
 
-        ```python exec
-        # Create a modified plotting function for time-bounded analysis
-        def plot_time_bounded_analysis(site_time_series_df_full, site_time_series_df_filtered, time_bounded_trends, zone_transects=None):
-            """
-            Create visualization showing both full dataset and time-bounded analysis
-            """
-            if site_time_series_df_filtered.empty or time_bounded_trends.empty:
-                print("No data available for time-bounded visualization.")
-                return
-                
-            # Prepare the data
-            df_full = site_time_series_df_full.copy()
-            df_filtered = site_time_series_df_filtered.copy()
-            df_full['dates'] = pd.to_datetime(df_full['dates'])
-            df_filtered['dates'] = pd.to_datetime(df_filtered['dates'])
-            
-            # Get transect columns for analysis
-            if zone_transects:
-                # Use zone transects if available
-                transect_ids = [t['id'] for t in zone_transects]
-                available_transects = [tid for tid in transect_ids if tid in df_full.columns and tid in time_bounded_trends['transect_id'].values]
-            else:
-                # Use all transects from time-bounded analysis
-                available_transects = [tid for tid in time_bounded_trends['transect_id'].values if tid in df_full.columns]
-            
-            if not available_transects:
-                print("No valid transects found for visualization.")
-                return
-                
-            # Limit to first few transects to avoid overcrowding
-            plot_transects = available_transects[:6]  # Show up to 6 transects
-            
-            fig = go.Figure()
-            colors = px.colors.qualitative.Set1
-            
-            # Calculate zone baseline from full data (similar to existing function)
-            all_values = []
-            for tid in plot_transects:
-                if tid in df_full.columns:
-                    values = df_full[tid].dropna()
-                    all_values.extend(values.tolist())
-            
-            if all_values:
-                zone_baseline = np.mean(all_values)
-            else:
-                zone_baseline = 0
-            
-            # Plot full dataset for each transect (lighter lines)
-            for i, tid in enumerate(plot_transects):
-                if tid in df_full.columns:
-                    data_full = df_full[['dates', tid]].dropna()
-                    if len(data_full) > 0:
-                        fig.add_trace(go.Scatter(
-                            x=data_full['dates'],
-                            y=data_full[tid] - zone_baseline,
-                            mode='lines',
-                            name=f'{tid} (Full)',
-                            opacity=0.3,
-                            line=dict(color=colors[i % len(colors)], width=1),
-                            hovertemplate=f'{tid} (Full): %{{y:.1f}}m<extra></extra>',
-                            legendgroup=f'group{i}',
-                            showlegend=True
-                        ))
-            
-            # Plot time-bounded dataset for each transect (darker lines)
-            for i, tid in enumerate(plot_transects):
-                if tid in df_filtered.columns:
-                    data_filtered = df_filtered[['dates', tid]].dropna()
-                    if len(data_filtered) > 0:
-                        fig.add_trace(go.Scatter(
-                            x=data_filtered['dates'],
-                            y=data_filtered[tid] - zone_baseline,
-                            mode='lines+markers',
-                            name=f'{tid} (Time-bounded)',
-                            opacity=0.8,
-                            line=dict(color=colors[i % len(colors)], width=2),
-                            marker=dict(size=3),
-                            hovertemplate=f'{tid} (Time-bounded): %{{y:.1f}}m<extra></extra>',
-                            legendgroup=f'group{i}',
-                            showlegend=True
-                        ))
-                        
-                        # Add trend line for time-bounded period
-                        trend_data = time_bounded_trends[time_bounded_trends['transect_id'] == tid]
-                        if len(trend_data) > 0:
-                            trend_row = trend_data.iloc[0]
-                            start_date = pd.to_datetime(trend_row['date_range_start'])
-                            end_date = pd.to_datetime(trend_row['date_range_end'])
-                            
-                            # Calculate trend line
-                            years_since_start = ((data_filtered['dates'] - start_date).dt.days / 365.25)
-                            trend_values = (trend_row['trend_time_bounded'] * years_since_start + 
-                                          trend_row['intercept_time_bounded'] - zone_baseline)
-                            
-                            fig.add_trace(go.Scatter(
-                                x=data_filtered['dates'],
-                                y=trend_values,
-                                mode='lines',
-                                name=f'{tid} Trend ({trend_row["trend_time_bounded"]:.2f} m/yr)',
-                                line=dict(color=colors[i % len(colors)], width=2, dash='dash'),
-                                hovertemplate=f'{tid} Trend: %{{y:.1f}}m<extra></extra>',
-                                legendgroup=f'group{i}',
-                                showlegend=False
-                            ))
-            
-            # Add baseline reference
-            fig.add_hline(
-                y=0,
-                line_dash="dot",
-                line_color="gray",
-                opacity=0.5,
-                annotation_text="Zone Baseline",
-                annotation_position="bottom right"
-            )
-            
-            # Add vertical lines to mark time-bounded period
-            if len(time_bounded_trends) > 0:
-                start_date = pd.to_datetime(time_bounded_trends['date_range_start'].iloc[0])
-                end_date = pd.to_datetime(time_bounded_trends['date_range_end'].iloc[0])
-                
-                fig.add_vline(
-                    x=start_date,
-                    line_dash="solid",
-                    line_color="red",
-                    opacity=0.7,
-                    annotation_text=f"Analysis Start: {start_date.strftime('%Y-%m')}",
-                    annotation_position="top"
-                )
-                
-                fig.add_vline(
-                    x=end_date,
-                    line_dash="solid", 
-                    line_color="red",
-                    opacity=0.7,
-                    annotation_text=f"Analysis End: {end_date.strftime('%Y-%m')}",
-                    annotation_position="top"
-                )
-            
-            # Layout and styling
-            title_text = f'Time-Bounded Shoreline Analysis<br><sub>Comparison of full dataset vs. {from_date_human} to {to_date_human} period</sub>'
-            fig.update_layout(
-                title=title_text,
-                xaxis_title='Date',
-                yaxis_title='Cross-shore change [m]',
-                hovermode='x unified',
-                width=900,
-                height=500,
-                margin=dict(l=50, r=200, t=80, b=60),
-                font=dict(size=10),
-                legend=dict(
-                    orientation="v",
-                    yanchor="top",
-                    y=1,
-                    xanchor="left",
-                    x=1.02,
-                    font=dict(size=9),
-                    bordercolor="LightGray",
-                    borderwidth=1,
-                    itemsizing='trace'
-                )
-            )
+:::: else
 
-            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#eee')
-            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#eee', hoverformat='.1f')
-
-            fig.show()
-        
-        # Create the visualization if data is available
-        if time_bounded_analysis_available and len(time_bounded_trends) > 0:
-            # Check if we have zone transects for this analysis
-            current_zone_transects = None
-            if 'zone_transects' in locals() and zone_transects:
-                current_zone_transects = zone_transects
-            
-            plot_time_bounded_analysis(
-                site_time_series_df, 
-                site_time_series_df_filtered, 
-                time_bounded_trends,
-                current_zone_transects
-            )
-        ```
-
-        :::: else### Analysis Limitations
+### Analysis Limitations
 
 Time-bounded analysis could not be performed for this site within the specified date range. This may be due to insufficient satellite observations, data quality constraints, or the selected time period falling outside the available data coverage. The standard analysis using the full temporal dataset remains available above.
 
 ::::
+
+::: else 
+
+Sardinia time bounded analysis not currently supported
 
 :::
 
