@@ -246,6 +246,10 @@ def get_location_name(geometry):
         centroid = geometry.centroid
         lon, lat = centroid.x, centroid.y
         
+        # Fix longitude coordinates that are in 0-360 range (convert to -180 to 180)
+        if lon > 180:
+            lon = lon - 360
+        
         location = requests.get(
             url="https://nominatim.openstreetmap.org/reverse",
             params={
