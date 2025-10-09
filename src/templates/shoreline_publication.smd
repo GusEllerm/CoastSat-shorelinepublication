@@ -971,6 +971,8 @@ The orientation of transects spans from `get_summary_value("orientation", "min")
 
 :::
 
+::: figure
+Site Transects
 ```python exec
 site_map = create_transect_map(
     site_primary_data, 
@@ -979,6 +981,7 @@ site_map = create_transect_map(
 )
 site_map
 ```
+:::
 
 ::: if has_numeric_data and "trend" in summary.index
 
