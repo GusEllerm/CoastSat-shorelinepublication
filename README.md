@@ -70,20 +70,6 @@ python src/publication_logic.py aus0001 --from 01-01-2020 --populate-crate
 ./tests/test_publication_enhanced.sh aus0001 --from 01-01-2010 --to 31-12-2020
 ```
 
-**Features:**
-
-1. **Recalculated Trends**: Linear regression trends recalculated for the specified period
-1. **Time-Bounded Zone Analysis**: Narrative zones identified based on time-limited behavior
-1. **Comparative Metrics**: Direct comparison with full-dataset analysis
-1. **Period-Specific Maps**: Visualizations showing trends for the specified timeframe
-
-**Use Cases:**
-
-- Storm impact assessment (before/after major events)
-- Decadal change analysis
-- Policy impact evaluation
-- Climate change period studies
-
 ## 🏗️ Project Structure
 
 ```
@@ -127,31 +113,8 @@ npm install -g ro-crate-html-js
 
 Edit `src/templates/shoreline_publication.smd` to customize publications:
 
-```markdown
----
-title: "Shoreline Analysis for {site_id}"
----
-
-# Site Analysis Report
-
-```python exec
-import json
-with open('data.json', 'r') as f:
-    data = json.load(f)
-site_id = data['id']
-```
-
-Analyzing site **{site_id}**...
-
-```
-
 ## 📞 Contact
 
-- **Author**: Gus Ellerm  
+- **Author**: Gus Ellerm
 - **Email**: aell854@UoA.auckland.ac.nz
 - **GitHub**: [CoastSat-shorelinepublication](https://github.com/GusEllerm/CoastSat-shorelinepublication)
-
----
-
-*CoastSat Shoreline Publication System - Making coastal research reproducible and accessible*
-```
