@@ -3,3 +3,8 @@ geopandas
 contextily
 folium
 scikit-learn
+plotly
+matplotlib
+pandas
+scipy
+shapely
