@@ -1,5 +1,7 @@
 # CoastSat Shoreline Publication System
 
+> **⚠️ Experimental Branch**: This branch (`experimental/neurosymbolic`) is dedicated to experimenting with LLM inference integrated into the Dynamic Narrative Framework to automate prose creation. This is experimental work and may not be stable. For the stable version, please use the `main` branch.
+
 Generate interactive, reproducible research publications from CoastSat shoreline analysis data using RO-Crate and Stencila technologies.
 
 ## 🚀 Quick Start
