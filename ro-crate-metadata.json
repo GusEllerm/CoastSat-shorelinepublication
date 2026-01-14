@@ -1,0 +1,146 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "author": {
+                "@id": "https://orcid.org/0000-0001-8260-231X"
+            },
+            "datePublished": "2026-01-14T23:15:32+00:00",
+            "description": "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication.",
+            "hasPart": [
+                {
+                    "@id": "README.md"
+                },
+                {
+                    "@id": "CITATION.cff"
+                },
+                {
+                    "@id": "codemeta.json"
+                },
+                {
+                    "@id": ".zenodo.json"
+                },
+                {
+                    "@id": "LICENSE"
+                },
+                {
+                    "@id": "src/templates/shoreline_publication.smd"
+                },
+                {
+                    "@id": "src/publication_logic.py"
+                },
+                {
+                    "@id": "scripts/publish_to_docs.sh"
+                },
+                {
+                    "@id": "scripts/create_publication.sh"
+                },
+                {
+                    "@id": "docs/shoreline_publication.smd"
+                },
+                {
+                    "@id": "docs/shorelinepublication.html"
+                },
+                {
+                    "@id": "docs/cached_shoreline.geojson"
+                },
+                {
+                    "@id": "docs/cached_primary_result.geojson"
+                }
+            ],
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "mainEntity": {
+                "@id": "#publication"
+            },
+            "name": "CoastSat shoreline LivePublication",
+            "url": "https://github.com/GusEllerm/CoastSat-shorelinepublication",
+            "version": "1.0.0"
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "https://orcid.org/0000-0001-8260-231X",
+            "@type": "Person",
+            "name": "Augustus Ellerm"
+        },
+        {
+            "@id": "#publication",
+            "@type": "CreativeWork",
+            "author": {
+                "@id": "https://orcid.org/0000-0001-8260-231X"
+            },
+            "description": "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication.",
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "name": "CoastSat shoreline LivePublication",
+            "url": "https://github.com/GusEllerm/CoastSat-shorelinepublication",
+            "version": "1.0.0"
+        },
+        {
+            "@id": "https://w3id.org/ro/crate/1.1",
+            "@type": "CreativeWork",
+            "name": "RO-Crate Metadata Specification 1.1"
+        },
+        {
+            "@id": "README.md",
+            "@type": "File"
+        },
+        {
+            "@id": "CITATION.cff",
+            "@type": "File"
+        },
+        {
+            "@id": "codemeta.json",
+            "@type": "File"
+        },
+        {
+            "@id": ".zenodo.json",
+            "@type": "File"
+        },
+        {
+            "@id": "LICENSE",
+            "@type": "File"
+        },
+        {
+            "@id": "src/templates/shoreline_publication.smd",
+            "@type": "File"
+        },
+        {
+            "@id": "src/publication_logic.py",
+            "@type": "File"
+        },
+        {
+            "@id": "scripts/publish_to_docs.sh",
+            "@type": "File"
+        },
+        {
+            "@id": "scripts/create_publication.sh",
+            "@type": "File"
+        },
+        {
+            "@id": "docs/shoreline_publication.smd",
+            "@type": "File"
+        },
+        {
+            "@id": "docs/shorelinepublication.html",
+            "@type": "File"
+        },
+        {
+            "@id": "docs/cached_shoreline.geojson",
+            "@type": "File"
+        },
+        {
+            "@id": "docs/cached_primary_result.geojson",
+            "@type": "File"
+        }
+    ]
+}

@@ -1,0 +1,25 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "CoastSat shoreline LivePublication",
+  "description": "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication.",
+  "codeRepository": "https://github.com/GusEllerm/CoastSat-shorelinepublication",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "version": "1.0.0",
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Augustus",
+      "familyName": "Ellerm",
+      "@id": "https://orcid.org/0000-0001-8260-231X"
+    }
+  ],
+  "keywords": [
+    "LivePublication",
+    "CoastSat",
+    "shoreline",
+    "reproducibility",
+    "RO-Crate",
+    "Stencila"
+  ]
+}

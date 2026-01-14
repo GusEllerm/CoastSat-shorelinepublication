@@ -1,0 +1,39 @@
+{
+  "title": "CoastSat shoreline LivePublication",
+  "description": "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication.",
+  "upload_type": "publication",
+  "publication_type": "other",
+  "creators": [
+    {
+      "name": "Ellerm, Augustus",
+      "orcid": "0000-0001-8260-231X"
+    }
+  ],
+  "license": "CC-BY-4.0",
+  "keywords": [
+    "LivePublication",
+    "CoastSat",
+    "shoreline",
+    "reproducibility",
+    "RO-Crate",
+    "Stencila"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/GusEllerm/CoastSat-shorelinepublication",
+      "relation": "isSupplementTo"
+    },
+    {
+      "identifier": "https://doi.org/10.5281/zenodo.18250232",
+      "relation": "references"
+    },
+    {
+      "identifier": "https://doi.org/10.5281/zenodo.18250033",
+      "relation": "references"
+    },
+    {
+      "identifier": "https://github.com/UoA-eResearch/CoastSat",
+      "relation": "isDerivedFrom"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+title: "CoastSat shoreline LivePublication"
+message: "If you use this work, please cite it as below."
+authors:
+  - family-names: Ellerm
+    given-names: Augustus
+    orcid: "https://orcid.org/0000-0001-8260-231X"
+repository-code: "https://github.com/GusEllerm/CoastSat-shorelinepublication"
+abstract: "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication."
+license: CC-BY-4.0
+version: 1.0.0
+preferred-citation:
+  type: report
+  title: "CoastSat shoreline LivePublication"
+  authors:
+    - family-names: Ellerm
+      given-names: Augustus
+      orcid: "https://orcid.org/0000-0001-8260-231X"
+  url: "https://github.com/GusEllerm/CoastSat-shorelinepublication"
