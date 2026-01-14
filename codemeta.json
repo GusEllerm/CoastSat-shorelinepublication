@@ -5,7 +5,8 @@
   "description": "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication.",
   "codeRepository": "https://github.com/GusEllerm/CoastSat-shorelinepublication",
   "license": "https://creativecommons.org/licenses/by/4.0/",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "identifier": "https://doi.org/10.5281/zenodo.18250456",
   "author": [
     {
       "@type": "Person",

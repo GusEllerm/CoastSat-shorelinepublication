@@ -1,4 +1,4 @@
-# CoastSat shoreline LivePublication
+# CoastSat shoreline LivePublication [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18250456.svg)](https://doi.org/10.5281/zenodo.18250456)
 
 ## What this is
 This repository is a CoastSat shoreline LivePublication container: an executable, reproducible publication that combines narrative text, computational steps, and generated artefacts. It is designed as a publishable research object (Chapter 6 case study). The repository supports RO-Crate packaging and Stencila-based rendering to make the publication portable and inspectable.
@@ -18,7 +18,7 @@ This repository is a CoastSat shoreline LivePublication container: an executable
 - interface.crate generation tool (Zenodo): https://doi.org/10.5281/zenodo.18250232
 
 ## How to cite
-Use `CITATION.cff`. Zenodo DOI will be added after release (TODO).
+Use `CITATION.cff`. Zenodo DOI: https://doi.org/10.5281/zenodo.18250456
 
 ## License
 CC BY 4.0 (see `LICENSE`).

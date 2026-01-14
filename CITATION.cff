@@ -8,7 +8,10 @@ authors:
 repository-code: "https://github.com/GusEllerm/CoastSat-shorelinepublication"
 abstract: "Executable shoreline LivePublication for the CoastSat case study, combining narrative, RO-Crate packaging, and generated artefacts for reproducible publication."
 license: CC-BY-4.0
-version: 1.0.0
+version: 1.0.1
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.18250456
 preferred-citation:
   type: report
   title: "CoastSat shoreline LivePublication"
@@ -17,3 +20,4 @@ preferred-citation:
       given-names: Augustus
       orcid: "https://orcid.org/0000-0001-8260-231X"
   url: "https://github.com/GusEllerm/CoastSat-shorelinepublication"
+  doi: 10.5281/zenodo.18250456
